@@ -105,6 +105,9 @@ class MultiProcessOrchestrator {
 function normalizeForkContext(context = {}) {
   const tenantId = context.tenant_id ?? context.tenantId ?? null;
   const appId = context.app_id ?? context.appId ?? null;
+  const appName = context.appName ?? null;
+  const appDomain = context.appDomain ?? null;
+  const tenantDomain = context.tenantDomain ?? deriveTenantDomainFromAppDomain(appName, appDomain);
 
   return Object.freeze({
     ...context,
@@ -112,11 +115,11 @@ function normalizeForkContext(context = {}) {
     appId,
     tenant_id: tenantId,
     app_id: appId,
-    tenantDomain: context.tenantDomain ?? null,
+    tenantDomain,
     tenantRoot: context.tenantRoot ?? null,
     appRoot: context.appRoot ?? null,
-    appDomain: context.appDomain ?? null,
-    appName: context.appName ?? null,
+    appDomain,
+    appName,
     reason: context.reason ?? null
   });
 }
@@ -173,9 +176,37 @@ function buildFirewallLaunchOptions(layerKey, processKey, context) {
     });
   }
 
+  if (layerKey === `appScope` && processKey === `isolatedRuntime`) {
+    const appSelector = buildAppSelector(context.appName, context.tenantDomain);
+    return Object.freeze({
+      appDomain: context.appDomain ?? null,
+      appName: context.appName ?? null,
+      appSelector,
+      localProxyPorts: [],
+      processKind: `app`
+    });
+  }
+
   return Object.freeze({
     localProxyPorts: []
   });
+}
+
+function buildAppSelector(appName, tenantDomain) {
+  const normalizedAppName = typeof appName === `string` ? appName.trim() : ``;
+  const normalizedTenantDomain = typeof tenantDomain === `string` ? tenantDomain.trim().toLowerCase() : ``;
+  if (!normalizedAppName || !normalizedTenantDomain) return null;
+  return `${normalizedAppName}@${normalizedTenantDomain}`;
+}
+
+function deriveTenantDomainFromAppDomain(appName, appDomain) {
+  if (typeof appName !== `string` || typeof appDomain !== `string`) return null;
+  const normalizedAppName = appName.trim().toLowerCase();
+  const normalizedAppDomain = appDomain.trim().toLowerCase();
+  const prefix = `${normalizedAppName}.`;
+  if (!normalizedAppName || !normalizedAppDomain.startsWith(prefix)) return null;
+  const tenantDomain = normalizedAppDomain.slice(prefix.length);
+  return tenantDomain || null;
 }
 
 module.exports = MultiProcessOrchestrator;

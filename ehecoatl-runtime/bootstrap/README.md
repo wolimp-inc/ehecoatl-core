@@ -51,7 +51,7 @@ index.js
 - registers temporary isolated-runtime spawning with canonical `e_app_{tenant_id}_{app_id}` labels
 - supervises the child tree after director scan/reconciliation signals
 - owns the direct launcher bridge used for single-purpose network setup or update requests
-- forwards tenant-registry firewall sync requests to the launcher parent, which is the only bootstrap stage allowed to execute the firewall command implementations
+- forwards config-driven firewall setup/clear requests to the launcher parent, which is the only bootstrap stage allowed to execute the firewall command implementations
 
 ### Child bootstraps
 
@@ -88,7 +88,7 @@ Each one is responsible for:
 - `process-main.js` is launched by `bootstrap.js` with `CAP_SETUID` and `CAP_SETGID`, then immediately drops to `ehecoatl:ehecoatl`.
 - `process-director.js`, `process-transport.js`, and `process-isolated-runtime.js` now apply contract-rendered identity first and only then re-execute through `setpriv` to drop any remaining inherited capabilities.
 - this keeps privileged host operations isolated to the launcher path and inaccessible to custom third-party scripts running inside forked runtime processes.
-- the direct bridge from `process-main.js` to the launcher is intended for deterministic firewall sync/clear and Nginx validate/reload triggers owned by `MAIN` only; it is not a general privileged shell escape surface.
+- the direct bridge from `process-main.js` to the launcher is intended for deterministic `runtime.network` firewall setup/clear and Nginx validate/reload triggers owned by `MAIN` only; it is not a general privileged shell escape surface.
 - `main` is the process root of the `supervisionScope` layer, while `director` is the first supervised child and the owner of the first scan and later tenant/app reconciliation.
 - `multiProcessOrchestrator` is the high-level spawn facade in `MAIN`; `processForkRuntime` remains the low-level supervised fork runtime.
 - supervised children receive `EHECOATL_CGROUP_ID`, `EHECOATL_CGROUP_PATH`, and `EHECOATL_CGROUP_REQUIRED` when managed cgroups are enabled.

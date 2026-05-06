@@ -72,3 +72,5 @@ Current consumers include:
 Changing runtime policy affects CLI/setup behavior. Treat it as an operational compatibility contract, not as the runtime source of truth for supervised child identity.
 
 For firewall behavior in particular, policy should continue to describe narrowly scoped setup and release commands rather than arbitrary command execution. The network-administration privilege used by those commands is intentionally isolated to the launcher side of the runtime bootstrap flow.
+
+Automatic firewall behavior is governed by runtime configuration, not by policy. `runtime.network.defaultWanBlock` enables or disables automatic WAN fencing, `runtime.network.wanOpenApps` defines app exceptions in `appName@tenantDomain` format, and `runtime.network.openLocalPorts` defines the local-proxy allowlist.

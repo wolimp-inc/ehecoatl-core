@@ -28,6 +28,21 @@ Defines runtime paths and grouped configuration roots such as:
 - `enforce`
 - `warn`
 
+`runtime.network` controls automatic process firewall behavior:
+
+```json
+{
+  "defaultWanBlock": true,
+  "wanOpenApps": ["www@testa.ehecoatl.com.br"],
+  "openLocalPorts": [6379, 3306, 15010]
+}
+```
+
+- `defaultWanBlock` enables automatic WAN-facing TCP fencing for supervised process users. When set to `false`, the runtime skips new automatic WAN block setup and clears existing Ehecoatl WAN firewall chains during the next main runtime boot/sync.
+- `wanOpenApps` lists app exceptions in `appName@tenantDomain` format. Exceptions apply only to app isolated runtimes while `defaultWanBlock` is `true`.
+- `openLocalPorts` keeps the local-proxy allowlist behavior and is the only supported path for that setting. The old `runtime.openlocalports` key is no longer supported.
+- In split config, the network block is stored at `/etc/opt/ehecoatl/config/runtime/network.json`.
+
 ### `plugins`
 
 Controls packaged and custom plugin enablement plus plugin-specific settings such as:

@@ -54,3 +54,4 @@
 - Tenant and app targeting now comes from the working directory, not from saved CLI context.
 - `firewall newtork_wan_block` manages deterministic WAN-facing TCP fencing for one process owner.
 - `firewall newtork_local_proxy` manages the loopback-only allowlist for one process owner and accepts a comma-separated port list.
+- Automatic runtime use of those firewall commands is configured by `runtime.network`, including `defaultWanBlock`, `wanOpenApps`, and `openLocalPorts`.

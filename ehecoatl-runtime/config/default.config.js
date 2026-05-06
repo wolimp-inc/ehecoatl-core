@@ -24,7 +24,11 @@ module.exports = {
         "mode": "enforce"
       }
     },
-    "openlocalports": [6379, 3306]
+    "network": {
+      "defaultWanBlock": true,
+      "wanOpenApps": [],
+      "openLocalPorts": [6379, 3306]
+    }
   },
 
   "plugins": {

@@ -159,7 +159,7 @@ firewall_parse_csv_ports() {
   printf '%s\n' "${ports[@]}" | sort -n -u
 }
 
-firewall_read_runtime_openlocalports() {
+firewall_read_runtime_open_local_ports() {
   local script_dir install_root
 
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -172,15 +172,10 @@ firewall_read_runtime_openlocalports() {
 (async () => {
   try {
     const loadUserConfig = require(`./config/default.user.config`);
+    const { normalizeRuntimeNetworkConfig } = require(`@/utils/config/runtime-network-config`);
     const config = await loadUserConfig();
-    const openLocalPorts = Array.isArray(config?.runtime?.openlocalports)
-      ? config.runtime.openlocalports
-      : [];
-    const ports = openLocalPorts
-      .map((value) => Number(value))
-      .filter((value) => Number.isInteger(value) && value >= 1 && value <= 65535)
-      .sort((left, right) => left - right);
-    for (const port of [...new Set(ports)]) {
+    const { openLocalPorts } = normalizeRuntimeNetworkConfig(config);
+    for (const port of openLocalPorts) {
       console.log(String(port));
     }
   } catch {

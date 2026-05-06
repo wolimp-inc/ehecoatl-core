@@ -7,6 +7,10 @@ const ManagedProcess = require("./managed-process");
 const MessageSchema = require(`@/_core/runtimes/rpc-runtime/schemas/message-schema`);
 const AdaptableUseCase = require(`@/_core/_ports/adaptable-use-case`);
 const { requestPrivilegedHostOperation } = require(`@/scripts/privileged-host-bridge`);
+const {
+  isWanOpenApp,
+  normalizeRuntimeNetworkConfig
+} = require(`@/utils/config/runtime-network-config`);
 
 /** Main-process runtime responsible for spawning, routing, and supervising child processes. */
 class ProcessForkRuntime extends AdaptableUseCase {
@@ -31,6 +35,7 @@ class ProcessForkRuntime extends AdaptableUseCase {
   ensureProcessQuestion;
   listProcessesQuestion;
   processCountsQuestion;
+  runtimeNetworkConfig;
 
   /** Initializes process supervision state, health tracking, and RPC router bindings. */
   constructor(kernelContext) {
@@ -51,6 +56,7 @@ class ProcessForkRuntime extends AdaptableUseCase {
     this.ensureProcessQuestion = this.config.question?.ensureProcess ?? `ensureProcess`;
     this.listProcessesQuestion = this.config.question?.listProcesses ?? `listProcesses`;
     this.processCountsQuestion = this.config.question?.processCounts ?? `processCounts`;
+    this.runtimeNetworkConfig = normalizeRuntimeNetworkConfig(kernelContext.config);
 
     const rpcRouter = kernelContext.useCases?.rpcRouter ?? null;
     const routerLabel = this.plugin.processLabel ?? null;
@@ -71,6 +77,7 @@ class ProcessForkRuntime extends AdaptableUseCase {
       routerLabel,
       process: this.currentProcess
     }, ERROR).catch(() => { });
+    await this.#reconcileWanBlockDefault();
 
     // LISTEN TO STATE CHANGES
     this.rpcRouter.endpoint.addListener(`state`, async ({ origin, state, ...details }) => {
@@ -531,8 +538,81 @@ class ProcessForkRuntime extends AdaptableUseCase {
     nextContext.processOptions.cleanupTasks = Array.isArray(nextContext.cleanupTasks)
       ? nextContext.cleanupTasks
       : [];
+    await this.#prepareManagedFirewall(nextContext);
     await this.#prepareManagedCgroup(nextContext);
     return nextContext;
+  }
+
+  async #reconcileWanBlockDefault() {
+    if (this.runtimeNetworkConfig.defaultWanBlock !== false) return;
+
+    await requestPrivilegedHostOperation({
+      operation: `firewall.wanBlock.offAll`,
+      payload: {
+        reason: `runtime_network_default_wan_block_disabled`
+      },
+      timeoutMs: 5000
+    });
+  }
+
+  async #prepareManagedFirewall(launchContext) {
+    const firewall = launchContext.processOptions?.firewall ?? null;
+    const processUser = launchContext.processOptions?.processUser ?? null;
+    const label = launchContext.label ?? launchContext.processOptions?.label ?? `unknown`;
+    if (!firewall || !processUser) return;
+
+    const cleanupTasks = Array.isArray(launchContext.cleanupTasks) ? [...launchContext.cleanupTasks] : [];
+    const localProxyPorts = normalizeFirewallPorts(firewall.localProxyPorts ?? []);
+    if (localProxyPorts.length > 0) {
+      await requestPrivilegedHostOperation({
+        operation: `firewall.localProxy.on`,
+        payload: {
+          processUser,
+          openLocalPortsCsv: this.runtimeNetworkConfig.openLocalPorts.join(`,`),
+          proxyPortsCsv: localProxyPorts.join(`,`)
+        },
+        timeoutMs: 5000
+      });
+      cleanupTasks.push(async () => {
+        await requestPrivilegedHostOperation({
+          operation: `firewall.localProxy.off`,
+          payload: { processUser },
+          timeoutMs: 5000
+        }).catch(() => {});
+      });
+    }
+
+    if (this.#shouldApplyWanBlock(firewall)) {
+      await requestPrivilegedHostOperation({
+        operation: `firewall.wanBlock.on`,
+        payload: {
+          processUser,
+          label
+        },
+        timeoutMs: 5000
+      });
+      cleanupTasks.push(async () => {
+        await requestPrivilegedHostOperation({
+          operation: `firewall.wanBlock.off`,
+          payload: {
+            processUser,
+            label
+          },
+          timeoutMs: 5000
+        }).catch(() => {});
+      });
+    }
+
+    launchContext.cleanupTasks = cleanupTasks;
+    launchContext.processOptions.cleanupTasks = cleanupTasks;
+  }
+
+  #shouldApplyWanBlock(firewall) {
+    if (this.runtimeNetworkConfig.defaultWanBlock !== true) return false;
+    if (firewall?.processKind === `app` && isWanOpenApp(this.runtimeNetworkConfig, firewall.appSelector)) {
+      return false;
+    }
+    return true;
   }
 
   async #prepareManagedCgroup(launchContext) {
@@ -753,6 +833,14 @@ function inferProcessKey({ processKey = null, processType = null }) {
   if (processType === `transport`) return `transport`;
   if (processType === `isolatedRuntime`) return `isolatedRuntime`;
   return null;
+}
+
+function normalizeFirewallPorts(values = []) {
+  if (!Array.isArray(values)) return [];
+  const ports = values
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value >= 1 && value <= 65535);
+  return [...new Set(ports)].sort((left, right) => left - right);
 }
 
 function getDefaultProcessResources(config) {

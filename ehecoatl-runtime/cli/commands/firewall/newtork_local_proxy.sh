@@ -8,7 +8,7 @@ STATE="${1:-}"
 [ "$#" -gt 0 ] && shift || true
 
 usage() {
-  echo "Usage: ehecoatl firewall newtork_local_proxy <on|off> <username|all> [openlocalports_csv] [proxyports_csv]"
+  echo "Usage: ehecoatl firewall newtork_local_proxy <on|off> <username|all> [openLocalPorts_csv] [proxyports_csv]"
 }
 
 NGINX_PROXY_USER="${EHECOATL_PROXY_CONSUMER_USER:-www-data}"
@@ -24,7 +24,7 @@ case "$STATE" in
     PROXY_PORT_SPEC="${3-}"
 
     OPENLOCALPORTS="$(firewall_parse_csv_ports "$OPENLOCALPORTS_SPEC")" || {
-      echo "Invalid runtime openlocalports list: ${OPENLOCALPORTS_SPEC:-<empty>}"
+      echo "Invalid runtime network openLocalPorts list: ${OPENLOCALPORTS_SPEC:-<empty>}"
       exit 1
     }
     PROXY_PORTS="$(firewall_parse_csv_ports "$PROXY_PORT_SPEC")" || {

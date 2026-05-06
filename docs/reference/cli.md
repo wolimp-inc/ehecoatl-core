@@ -80,6 +80,8 @@ Zip kits must contain kit files directly at the archive root, not inside a wrapp
 - `ehecoatl firewall newtork_wan_block <on|off> "<username>" [process-label] [input-chain]`
 - `ehecoatl firewall newtork_local_proxy <on|off> "<username>[:<port>[,<port>...]]"`
 
+These commands remain narrow privileged primitives. Automatic runtime use is configured through `runtime.network`: `defaultWanBlock` controls WAN fencing, `wanOpenApps` lists app exceptions as `appName@tenantDomain`, and `openLocalPorts` supplies the local-proxy allowlist.
+
 ## Notes
 
 - Tenant and app deploy commands trigger a direct `director` rescan through `ehecoatl core rescan tenants` after filesystem and ACL changes complete.
