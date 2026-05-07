@@ -133,6 +133,25 @@ test(`AppFluentFsRuntime writes to the resolved scope and refreshes the cache`, 
   );
 });
 
+test(`AppFluentFsRuntime unlinks files through the resolved fluent path`, async () => {
+  const storageService = createStorageServiceMock({
+    existingPaths: [`/runtime/app/storage/cache/mailing/user@example.com.json`]
+  });
+  const runtime = createRuntime(storageService);
+
+  assert.equal(
+    await runtime.storage.cache.mailing.unlinkAsync(`user@example.com.json`),
+    true
+  );
+  assert.deepEqual(storageService.deleteFileCalls[0], {
+    path: `/runtime/app/storage/cache/mailing/user@example.com.json`
+  });
+  assert.equal(
+    await runtime.storage.cache.mailing.existsAsync(`user@example.com.json`),
+    false
+  );
+});
+
 function createRuntime(storageService, options = {}) {
   return new AppFluentFsRuntime({
     useCases: {
@@ -153,12 +172,16 @@ function createStorageServiceMock({
   const fileExistsCalls = [];
   const writeFileSyncCalls = [];
   const writeFileCalls = [];
+  const createFolderCalls = [];
+  const deleteFileCalls = [];
 
   return {
     fileExistsSyncCalls,
     fileExistsCalls,
     writeFileSyncCalls,
     writeFileCalls,
+    createFolderCalls,
+    deleteFileCalls,
     readFileSync(targetPath) {
       return `sync:${targetPath}`;
     },
@@ -182,6 +205,20 @@ function createStorageServiceMock({
         encoding
       });
       return undefined;
+    },
+    async createFolder(targetPath) {
+      createFolderCalls.push({
+        path: targetPath
+      });
+      return undefined;
+    },
+    async deleteFile(targetPath) {
+      deleteFileCalls.push({
+        path: targetPath
+      });
+      const existed = existing.has(targetPath);
+      existing.delete(targetPath);
+      return existed;
     },
     fileExistsSync(targetPath) {
       fileExistsSyncCalls.push(targetPath);

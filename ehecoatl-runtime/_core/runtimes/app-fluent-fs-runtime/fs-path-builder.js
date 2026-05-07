@@ -1,5 +1,7 @@
 'use strict';
 
+const path = require(`node:path`);
+
 class FsPathBuilder {
   parentRuntime;
   rootName;
@@ -61,6 +63,7 @@ class FsPathBuilder {
 
   writeSync(filename, content, encoding = `utf8`) {
     const resolvedTarget = this.#resolveTarget(filename);
+    this.#ensureParentFolderSync(resolvedTarget.path);
     const writeResult = this.#getStorageService().writeFileSync(
       resolvedTarget.path,
       content,
@@ -80,6 +83,7 @@ class FsPathBuilder {
 
   async writeAsync(filename, content, encoding = `utf8`) {
     const resolvedTarget = this.#resolveTarget(filename);
+    await this.#ensureParentFolderAsync(resolvedTarget.path);
     const writeResult = await this.#getStorageService().writeFile(
       resolvedTarget.path,
       content,
@@ -91,6 +95,11 @@ class FsPathBuilder {
 
   async existsAsync(filename = ``) {
     return await this.#getStorageService().fileExists(this.path(filename));
+  }
+
+  async unlinkAsync(filename = ``) {
+    const resolvedTarget = this.#resolveTarget(filename);
+    return await this.#getStorageService().deleteFile(resolvedTarget.path);
   }
 
   #resolveTarget(filename = ``) {
@@ -105,6 +114,18 @@ class FsPathBuilder {
       segments: this.segments,
       filename
     });
+  }
+
+  async #ensureParentFolderAsync(targetPath) {
+    const parentFolder = path.dirname(String(targetPath ?? ``));
+    if (!parentFolder || parentFolder === `.`) return;
+    await this.#getStorageService().createFolder(parentFolder);
+  }
+
+  #ensureParentFolderSync(targetPath) {
+    const parentFolder = path.dirname(String(targetPath ?? ``));
+    if (!parentFolder || parentFolder === `.`) return;
+    require(`node:fs`).mkdirSync(parentFolder, { recursive: true });
   }
 
   #getStorageService() {

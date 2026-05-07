@@ -490,6 +490,7 @@ class TenantDirectoryResolver extends AdaptableUseCase {
             context: {
               tenantId,
               appId,
+              tenantDomain: activeHost?.tenantDomain ?? null,
               appDomain: activeHost?.domain ?? null,
               appName: activeHost?.appName ?? null,
               appRoot: rootFolder,
@@ -723,7 +724,7 @@ class TenantDirectoryResolver extends AdaptableUseCase {
       );
     } catch (error) {
       const normalizedError = error instanceof Error ? error : new Error(String(error));
-      startup.startupInfoLog(
+      console.warn(
         `Tenancy supervisor ${action} failed for ${label}: ${normalizedError.message}`
       );
       throw normalizedError;

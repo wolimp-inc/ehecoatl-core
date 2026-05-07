@@ -235,6 +235,7 @@ TenantDirectoryResolverPort.scanTenantsAdapter = async function ({
       const routeDataObject = {
         host,
         tenantId: appRecord.tenantId,
+        tenantDomain: tenantRecord.tenantDomain,
         appId: appRecord.appId,
         domain: tenantRecord.tenantDomain,
         appName: appRecord.appName,
@@ -320,6 +321,7 @@ TenantDirectoryResolverPort.scanTenantsAdapter = async function ({
     activeHosts: [...registry.hosts.values()].map((routeDataObject) => ({
       host: routeDataObject.host,
       tenantId: routeDataObject.tenantId,
+      tenantDomain: routeDataObject.tenantDomain,
       appId: routeDataObject.appId,
       domain: routeDataObject.domain,
       appName: routeDataObject.appName,

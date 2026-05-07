@@ -73,7 +73,14 @@ class AppFluentFsRuntime {
       fallbackRootFolder,
       segments: normalizedSegments,
       filename: normalizedFilename,
-      existsSync: (targetPath) => this.storageService?.fileExistsSync?.(targetPath) === true
+      existsSync: (targetPath) => {
+        try {
+          return this.storageService?.fileExistsSync?.(targetPath) === true;
+        } catch (error) {
+          if (error?.code === `ENOENT`) return false;
+          throw error;
+        }
+      }
     });
 
     const resolvedEntry = Object.freeze({
