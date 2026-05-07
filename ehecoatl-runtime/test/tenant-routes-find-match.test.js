@@ -6,6 +6,7 @@ const test = require(`node:test`);
 const assert = require(`node:assert/strict`);
 
 const tenantRoutesFindMatch = require(`@/utils/tenancy/tenant-routes-find-match`);
+const tenantRoutesCompiler = require(`@/utils/tenancy/tenant-routes-compiler`);
 
 test(`tenant-routes-find-match returns normalized params for dynamic routes and preserves legacy substitutions`, () => {
   const match = tenantRoutesFindMatch(`/blog/post-1`, [{
@@ -72,4 +73,22 @@ test(`tenant-routes-find-match keeps static routes compatible`, () => {
   assert.deepEqual(match, {
     pointsTo: `run > home@index`
   });
+});
+
+test(`tenant-routes-compiler dynamic params match email-like path segments`, () => {
+  const compiledRoutes = tenantRoutesCompiler({
+    "/confirm/{email}/{token}": {
+      pointsTo: `run > newsletter@confirm`
+    }
+  });
+  const match = tenantRoutesFindMatch(
+    `/confirm/peclml14@gmail.com/c7a290c8c2524fff68ea25beb0feffeeb800b73395335f6f3ebb6c7a97eb237b`,
+    compiledRoutes
+  );
+
+  assert.deepEqual(match?.params, {
+    email: `peclml14@gmail.com`,
+    token: `c7a290c8c2524fff68ea25beb0feffeeb800b73395335f6f3ebb6c7a97eb237b`
+  });
+  assert.equal(match?.pointsTo, `run > newsletter@confirm`);
 });

@@ -6,7 +6,7 @@
 
 const ___esc = s => s.replaceAll(/[\.]/g, "\\$&").replaceAll("*", ".*");
 const ___vars_regex = /\{[a-z0-9-_]+\}/gi;
-const ___rep_regex = "([a-zA-Z0-9-_%~\\.]+)";
+const ___rep_regex = "([^/]+)";
 
 const TYPE_STATIC = 0;
 const TYPE_DYNAMIC = 1;
