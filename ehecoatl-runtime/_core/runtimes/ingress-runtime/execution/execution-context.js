@@ -34,6 +34,7 @@ class ExecutionContext {
 
   sessionData;
   finishCallbacks;
+  finishCallbacksCalled;
   metaFinalized;
 
   /** @type {TenantRoute} */
@@ -73,6 +74,7 @@ class ExecutionContext {
     this.responseData = new ResponseData();
     this.sessionData = {};
     this.finishCallbacks = [];
+    this.finishCallbacksCalled = false;
     this.metaFinalized = false;
 
     this.meta = new ExecutionMetaData();
@@ -118,8 +120,12 @@ class ExecutionContext {
   }
 
   /** Emits the request end hook for the current execution context. */
-  end({ runRequestEndHook = true } = {}) {
-    this.finalizeMeta();
+  async end({ runRequestEndHook = true } = {}) {
+    try {
+      await this.callFinishCallbacks();
+    } finally {
+      this.finalizeMeta();
+    }
     if (!runRequestEndHook) return Promise.resolve();
     return this.run(this.hooks.REQUEST.END, this.hooks.REQUEST.ERROR);
   }
@@ -136,8 +142,16 @@ class ExecutionContext {
 
   /** Executes all registered finish callbacks without freezing request metadata early. */
   async callFinishCallbacks() {
-    for (const c of this.finishCallbacks) {
-      if (typeof c === `function`) await c();
+    if (this.finishCallbacksCalled) return;
+    this.finishCallbacksCalled = true;
+    const callbacks = this.finishCallbacks.splice(0);
+    for (const c of callbacks) {
+      if (typeof c !== `function`) continue;
+      try {
+        await c();
+      } catch (error) {
+        console.error(`[execution-context] finish callback failed`, error?.stack ?? error?.message ?? error);
+      }
     }
   }
 
