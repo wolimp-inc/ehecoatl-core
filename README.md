@@ -101,6 +101,12 @@ ehecoatl app "www@aaaaaaaaaaaa" config --get "appEnabled"
 - [Reference](docs/reference/README.md)
 - [Setup and Maintenance](docs/reference/setup-and-maintenance.md)
 
+## Sponsors
+
+In this section will be displayed the **Ehecoatl** open source initiative sponsors, who are supporting this to be free and alive.
+  
+Become a supporter too: [click here](https://github.com/sponsors/ehecoatl/)
+
 ## License
 
 2026 © [Wolimp](https://wolimp.com.br/), All Rights Reserved
