@@ -58,6 +58,10 @@ function getRenderedShellIdentity(layerKey, variables = {}) {
 }
 
 function getRenderedTenantFilesystemIdentity(tenantId, tenantDomain = null) {
+  return getRenderedPathDefaults(`projectScope`, buildVariables({ tenantId, tenantDomain }));
+}
+
+function getRenderedLegacyTenantFilesystemIdentity(tenantId, tenantDomain = null) {
   return getRenderedPathDefaults(`tenantScope`, buildVariables({ tenantId, tenantDomain }));
 }
 
@@ -97,6 +101,7 @@ function getRenderedScopePathEntry(layerKey, category, item, {
 
 module.exports = {
   buildVariables,
+  getRenderedLegacyTenantFilesystemIdentity,
   getRenderedAppFilesystemIdentity,
   getRenderedPathDefaults,
   getRenderedScopePathEntry,

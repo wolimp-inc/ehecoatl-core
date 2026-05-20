@@ -22,12 +22,14 @@ CertificateServicePort.getCertificatePathAdapter = async function getCertificate
   const normalizedTenantId = String(tenantId ?? ``).trim().toLowerCase();
   if (normalizedTenantId) {
     const tenantRecord = findOpaqueTenantRecordByIdSync({
+      projectsBase: String(config.projectsBase ?? `/var/opt/ehecoatl/projects`),
       tenantsBase: String(config.tenantsBase ?? `/var/opt/ehecoatl/tenants`),
+      legacyTenantsBase: String(config.legacyTenantsBase ?? config.tenantsBase ?? `/var/opt/ehecoatl/tenants`),
       tenantId: normalizedTenantId
     });
-    const tenantSslRoot = renderLayerPath(`tenantScope`, `RUNTIME`, `ssl`, {
+    const tenantSslRoot = renderLayerPath(tenantRecord?.projectRoot ? `projectScope` : `tenantScope`, `RUNTIME`, `ssl`, {
       tenant_id: normalizedTenantId,
-      tenant_domain: tenantRecord?.tenantDomain ?? null
+      tenant_domain: tenantRecord?.projectDomain ?? tenantRecord?.tenantDomain ?? null
     });
     const tenantDomainDir = tenantSslRoot ? path.join(tenantSslRoot, normalizedDomain) : ``;
     const tenantFullchainPath = tenantDomainDir ? path.join(tenantDomainDir, `fullchain.pem`) : ``;

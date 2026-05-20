@@ -4,14 +4,14 @@ const { createQueueOverloadResponse } = require(`@/utils/http/request-overload-r
 
 module.exports = async function runMiddleware(middlewareContext, next) {
   const forward = createFlowController(next);
-  const { tenantRoute } = middlewareContext;
-  if (!tenantRoute?.target?.run?.action) {
+  const { projectRoute } = middlewareContext;
+  if (!projectRoute?.target?.run?.action) {
     return forward.continue();
   }
 
   const queueConfig = middlewareContext.middlewareStackRuntimeConfig?.queue ?? {};
-  const tenantHost = tenantRoute.origin?.hostname;
-  const queueLabel = resolveActionQueueLabel(tenantRoute);
+  const projectHost = projectRoute.origin?.hostname;
+  const queueLabel = resolveActionQueueLabel(projectRoute);
   const maxConcurrent = queueConfig.actionMaxConcurrent
     ?? queueConfig.perTenantMaxConcurrent
     ?? 5;
@@ -30,7 +30,7 @@ module.exports = async function runMiddleware(middlewareContext, next) {
     applyResponse(middlewareContext, createOverloadResponse({
       task,
       retryAfterMs,
-      tenantHost,
+      projectHost,
       queueLabel,
       waitTimeoutMs,
       maxConcurrent
@@ -48,7 +48,7 @@ module.exports = async function runMiddleware(middlewareContext, next) {
 function createOverloadResponse({
   task,
   retryAfterMs,
-  tenantHost,
+  projectHost,
   queueLabel,
   waitTimeoutMs,
   maxConcurrent
@@ -60,7 +60,7 @@ function createOverloadResponse({
       productionBody: `Gateway Timeout`,
       nonProductionBody: `Request waited too long in the action queue for this non-production environment.`,
       nonProductionDetails: [
-        `Tenant host: ${tenantHost}`,
+        `Project host: ${projectHost}`,
         `Queue wait timeout: ${waitTimeoutMs}ms`,
         `Queue label: ${task.queueLabel ?? queueLabel}`
       ]
@@ -73,7 +73,7 @@ function createOverloadResponse({
     productionBody: `Service Unavailable`,
     nonProductionBody: `Action queue is saturated in this non-production environment.`,
     nonProductionDetails: [
-      `Tenant host: ${tenantHost}`,
+      `Project host: ${projectHost}`,
       `Queue label: ${task.queueLabel ?? queueLabel}`,
       `Per-app max concurrent: ${maxConcurrent}`,
       ...(Number.isFinite(task.maxWaiting) ? [`Queue max waiting slots: ${task.maxWaiting}`] : [])
@@ -81,18 +81,18 @@ function createOverloadResponse({
   });
 }
 
-function resolveActionQueueLabel(tenantRoute) {
-  const origin = tenantRoute?.origin ?? {};
-  const tenantId = normalizeQueueSegment(origin.tenantId ?? tenantRoute?.tenantId);
-  const appId = normalizeQueueSegment(origin.appId ?? tenantRoute?.appId);
-  if (tenantId && appId) {
-    return `actionQueue:${tenantId}:${appId}`;
+function resolveActionQueueLabel(projectRoute) {
+  const origin = projectRoute?.origin ?? {};
+  const projectId = normalizeQueueSegment(origin.projectId ?? projectRoute?.projectId ?? origin.tenantId ?? projectRoute?.tenantId);
+  const appId = normalizeQueueSegment(origin.appId ?? projectRoute?.appId);
+  if (projectId && appId) {
+    return `actionQueue:${projectId}:${appId}`;
   }
 
   const hostname = normalizeQueueSegment(origin.hostname) ?? `unknown-host`;
   const appSegment = normalizeQueueSegment(origin.appName)
     ?? normalizeQueueSegment(origin.appURL)
-    ?? normalizeQueueSegment(tenantRoute?.appName);
+    ?? normalizeQueueSegment(projectRoute?.appName);
   if (appSegment) {
     return `actionQueue:${hostname}:${appSegment}`;
   }

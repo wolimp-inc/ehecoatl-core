@@ -7,19 +7,20 @@
  * `updateSource(source, routeType, webServerConfig)`.
  *
  * Supported domain route types:
- * - `tenant`:
- *   Generates a normal tenant-facing vhost. The proxied request follows the
- *   standard tenant routing flow in the transport process.
+ * - `project` / `tenant`:
+ *   Generates a normal project-facing vhost. The proxied request follows the
+ *   standard project routing flow in the transport process. `tenant` remains
+ *   accepted as the legacy route type.
  * - `app`:
  *   Generates a direct app-alias vhost. In this case the nginx config injects
  *   the internal routing header `X-Ehecoatl-Target-App-Id`, allowing ingress
  *   to bypass app-selection mode and tunnel the request directly to the target
- *   app inside the current tenant.
+ *   app inside the current project.
  *
  * TLS lookup behavior:
  * - Primary source:
- *   `certificateService.getCertificatePath(domain, tenantId)`
- *   which currently resolves tenant-scope SSL first and Let's Encrypt second
+ *   `certificateService.getCertificatePath(domain, projectId)`
+ *   which currently resolves project-scope SSL first and Let's Encrypt second
  * - Fallback source:
  *   Ehecoatl generic placeholder certificate under internal-scope runtime SSL.
  *
@@ -60,9 +61,9 @@ WebServerServicePort.updateSourceAdapter = async function updateSourceAdapter(so
   adapterState.config = config;
   await ensureManagedConfigDir(config.managedConfigDir, webServerConfig);
 
-  const sourceKey = String(source?.key ?? source?.domain ?? source?.tenantId ?? ``).trim();
+  const sourceKey = String(source?.key ?? source?.domain ?? source?.projectId ?? source?.tenantId ?? ``).trim();
   if (!sourceKey) {
-    throw new Error(`web-server-service nginx adapter requires source.key, source.domain or source.tenantId`);
+    throw new Error(`web-server-service nginx adapter requires source.key, source.domain or source.projectId`);
   }
 
   const normalizedRouteType = normalizeRouteType(routeType ?? source?.routeType ?? null);
@@ -192,7 +193,7 @@ function normalizeWebServerConfig(webServerConfig = {}) {
   return Object.freeze({
     managedConfigDir: webServerConfig.managedConfigDir ?? `/etc/nginx/conf.d/ehecoatl`,
     managedIncludeFile: webServerConfig.managedIncludeFile ?? `/etc/nginx/conf.d/ehecoatl.conf`,
-    managedConfigPrefix: webServerConfig.managedConfigPrefix ?? `tenant_`,
+    managedConfigPrefix: webServerConfig.managedConfigPrefix ?? `project_`,
     managedConfigOwner: webServerConfig.managedConfigOwner ?? `ehecoatl`,
     managedConfigGroup: webServerConfig.managedConfigGroup ?? `g_directorScope`,
     managedConfigMode: String(webServerConfig.managedConfigMode ?? `2770`),
@@ -200,6 +201,8 @@ function normalizeWebServerConfig(webServerConfig = {}) {
     genericTlsKeyPath: webServerConfig.genericTlsKeyPath ?? null,
     nginxTestCommand: normalizeCommand(webServerConfig.nginxTestCommand ?? [`nginx`, `-t`], `nginxTestCommand`),
     nginxReloadCommand: normalizeCommand(webServerConfig.nginxReloadCommand ?? [`nginx`, `-s`, `reload`], `nginxReloadCommand`),
+    defaultProjectKitName: webServerConfig.defaultProjectKitName ?? webServerConfig.defaultTenantKitName ?? `empty`,
+    defaultProjectKitBaseDir: webServerConfig.defaultProjectKitBaseDir ?? `/srv/opt/ehecoatl/project-kits`,
     defaultTenantKitName: webServerConfig.defaultTenantKitName ?? `empty`,
     defaultTenantKitBaseDir: webServerConfig.defaultTenantKitBaseDir ?? `/srv/opt/ehecoatl/tenant-kits`,
     getCertificatePath: typeof webServerConfig.getCertificatePath === `function`
@@ -280,9 +283,9 @@ async function ensureTenantLogFiles(source, renderModel, webServerConfig = {}) {
   const errorLogPath = String(renderModel?.errorLogPath ?? ``).trim();
   if (!accessLogPath && !errorLogPath) return;
 
-  const logRootEntry = renderLayerPathEntry(`tenantScope`, `LOGS`, `root`, {
-    tenant_id: source?.tenantId ?? null,
-    tenant_domain: source?.tenantDomain ?? null
+  const logRootEntry = renderLayerPathEntry(`projectScope`, `LOGS`, `root`, {
+    tenant_id: source?.projectId ?? source?.tenantId ?? null,
+    tenant_domain: source?.projectDomain ?? source?.tenantDomain ?? null
   });
   const fileMode = dirModeToFileMode(logRootEntry?.mode ?? `2775`);
   const payload = {
@@ -344,9 +347,9 @@ function buildManagedSourcePath(sourceKey, config) {
 }
 
 async function ensureTenantTemplatePath(source, config) {
-  const tenantRoot = String(source?.tenantRoot ?? ``).trim();
+  const tenantRoot = String(source?.projectRoot ?? source?.tenantRoot ?? ``).trim();
   if (!tenantRoot) {
-    throw new Error(`web-server-service nginx adapter requires source.tenantRoot`);
+    throw new Error(`web-server-service nginx adapter requires source.projectRoot; legacy source.tenantRoot is still accepted`);
   }
 
   const tenantTemplatePath = path.join(tenantRoot, `.ehecoatl`, `lib`, `nginx.e.conf`);
@@ -365,6 +368,21 @@ async function ensureTenantTemplatePath(source, config) {
 }
 
 async function resolveDefaultTenantTemplatePath(config) {
+  const customProjectKitTemplate = path.join(
+    config.defaultProjectKitBaseDir,
+    config.defaultProjectKitName,
+    `.ehecoatl`,
+    `lib`,
+    `nginx.e.conf`
+  );
+
+  try {
+    await fs.access(customProjectKitTemplate);
+    return customProjectKitTemplate;
+  } catch (error) {
+    if (error?.code !== `ENOENT`) throw error;
+  }
+
   const customTenantKitTemplate = path.join(
     config.defaultTenantKitBaseDir,
     config.defaultTenantKitName,
@@ -380,7 +398,23 @@ async function resolveDefaultTenantTemplatePath(config) {
     if (error?.code !== `ENOENT`) throw error;
   }
 
-  const packagedTemplatePath = path.resolve(
+  const packagedProjectTemplatePath = path.resolve(
+    __dirname,
+    `../../../../project-kits`,
+    config.defaultProjectKitName,
+    `.ehecoatl`,
+    `lib`,
+    `nginx.e.conf`
+  );
+
+  try {
+    await fs.access(packagedProjectTemplatePath);
+    return packagedProjectTemplatePath;
+  } catch (error) {
+    if (error?.code !== `ENOENT`) throw error;
+  }
+
+  const packagedTenantTemplatePath = path.resolve(
     __dirname,
     `../../../../tenant-kits`,
     config.defaultTenantKitName,
@@ -388,12 +422,12 @@ async function resolveDefaultTenantTemplatePath(config) {
     `lib`,
     `nginx.e.conf`
   );
-  await fs.access(packagedTemplatePath);
-  return packagedTemplatePath;
+  await fs.access(packagedTenantTemplatePath);
+  return packagedTenantTemplatePath;
 }
 
 async function withEffectiveTls(source, config = {}) {
-  const domain = String(source?.domain ?? source?.tenantDomain ?? ``).trim().toLowerCase();
+  const domain = String(source?.domain ?? source?.projectDomain ?? source?.tenantDomain ?? ``).trim().toLowerCase();
   const configuredGenericCertPath = String(config?.genericTlsCertPath ?? ``).trim();
   const configuredGenericKeyPath = String(config?.genericTlsKeyPath ?? ``).trim();
   const genericSslRoot = configuredGenericCertPath && configuredGenericKeyPath
@@ -403,7 +437,7 @@ async function withEffectiveTls(source, config = {}) {
   const genericKeyPath = configuredGenericKeyPath || (genericSslRoot ? path.join(genericSslRoot, `generic.privkey.pem`) : ``);
 
   const resolvedTls = typeof config?.getCertificatePath === `function`
-    ? await config.getCertificatePath(domain, source?.tenantId ?? null)
+    ? await config.getCertificatePath(domain, source?.projectId ?? source?.tenantId ?? null)
     : null;
 
   if (resolvedTls?.fullchainPath && resolvedTls?.privkeyPath) {
@@ -447,10 +481,10 @@ async function withEffectiveTls(source, config = {}) {
 
 function normalizeRouteType(routeType) {
   const normalized = String(routeType ?? ``).trim().toLowerCase();
-  if (normalized === `tenant` || normalized === `app`) {
+  if (normalized === `project` || normalized === `tenant` || normalized === `app`) {
     return normalized;
   }
-  return `tenant`;
+  return `project`;
 }
 
 async function filePairExists(firstPath, secondPath) {

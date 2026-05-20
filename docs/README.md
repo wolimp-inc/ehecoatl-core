@@ -1,6 +1,6 @@
 # Ehecoatl Core
 
-Ehecoatl Core is a Linux-oriented multi-tenant runtime for HTTP and WebSocket workloads. It combines a supervised multi-process architecture, filesystem-driven tenancy, adapter-backed runtime components, and a packaged operational toolchain for install, deploy, and maintenance.
+Ehecoatl Core is a Linux-oriented multi-tenant runtime for HTTP and WebSocket workloads. Operators organize workloads as projects and apps, while the runtime still provides multi-tenant isolation underneath.
 
 ## What The Repository Contains
 
@@ -16,9 +16,9 @@ Ehecoatl Core is a Linux-oriented multi-tenant runtime for HTTP and WebSocket wo
 ## Runtime Model
 
 - `main` is the root supervisor process.
-- `director` maintains active tenancy state, reconciliation, and shared coordination.
-- `e_transport_{tenant_id}` handles ingress for one tenant.
-- `e_app_{tenant_id}_{app_id}` runs one isolated application runtime.
+- `director` maintains active project/app routing state, reconciliation, and shared coordination.
+- `e_project_transport_{project_id}` handles ingress for one project.
+- `e_app_{project_id}_{app_id}` runs one isolated application runtime.
 - Contracts under `ehecoatl-runtime/contracts/` define topology, identities, runtime paths, and setup derivation.
 
 ## Installation
@@ -65,13 +65,14 @@ ehecoatl core log
 ehecoatl core stop
 ```
 
-Tenant and app deployment is performed through:
+Project and app deployment is performed through:
 
 ```bash
-ehecoatl core deploy tenant "@example.test" -t "test"
+ehecoatl core deploy project "@example.test" -p "test"
 ```
 
-The packaged `test` tenant kit includes the default `www` app as an embedded app source, so no separate `test` app kit deploy is needed.
+The packaged `test` project kit includes the default `www` app as an embedded app source, so no separate `test` app kit deploy is needed.
+Legacy `core deploy tenant` and `-t|--tenant-kit` remain accepted for compatibility.
 
 ## Security And Isolation Notes
 

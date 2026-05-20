@@ -4,7 +4,7 @@
 'use strict';
 
 
-const { group, tenantRoot } = require(`../context.js`);
+const { group } = require(`../context.js`);
 
 module.exports = {
   ABOUT: {
@@ -19,68 +19,95 @@ module.exports = {
   ],
   COMMANDS: [
     {
-      command: `deploy tenant`,
+      command: `deploy project`,
       PARAMS: [
         {
           prefix: null,
           optional: false,
           default: null,
-          description: `target tenant environment alias to create`,
+          description: `target project environment alias to create`,
           shapes: [`@{domain}`]
         },
         {
-          prefix: [`-t`, `--tenant-kit`],
+          prefix: [`-p`, `--project-kit`, `-t`, `--tenant-kit`],
           optional: false,
           default: null,
-          description: `tenant kit folder or zip source to scaffold into the new tenant environment; the .zip extension is optional; missing kits fall back to customTenantKits and https://github.com/ehecoatl/tenant-kit-{kit_name}.git; top-level app_<name>/ folders are auto-deployed as embedded apps`,
+          description: `project kit folder or zip source to scaffold into the new project environment; the .zip extension is optional; missing kits fall back to customProjectKits, legacy customTenantKits, https://github.com/ehecoatl/project-kit-{kit_name}.git, and legacy tenant-kit remotes; top-level app_<name>/ folders are auto-deployed as embedded apps`,
           shapes: [`{kit_name}`]
         },
       ],
       AFTER_CLI: {
         description: `executed after this command, in this case for director registry refresh`,
         COMMANDS: [
-          `ehecoatl core rescan tenants`
+          `ehecoatl core rescan projects`
         ]
       },
       ABOUT: {
-        label: `Create and register a new tenant environment`,
-        description: `Creates a new tenant environment using a tenant kit; top-level app_<name>/ folders in the tenant kit are deployed as apps`
+        label: `Create and register a new project environment`,
+        description: `Creates a new project environment using a project kit; top-level app_<name>/ folders in the project kit are deployed as apps`
+      }
+    },
+    {
+      command: `deploy tenant`,
+      old_command: `deploy project`,
+      PARAMS: [],
+      ABOUT: {
+        label: `Legacy alias for deploy project`,
+        description: `Compatibility alias; prefer core deploy project`
+      }
+    },
+    {
+      command: `rescan projects`,
+      PARAMS: [],
+      ABOUT: {
+        label: `Force immediate project registry rescan`,
+        description: `Triggers a director project rescan immediately and waits for completion`
       }
     },
     {
       command: `rescan tenants`,
+      old_command: `rescan projects`,
       PARAMS: [],
       ABOUT: {
-        label: `Force immediate tenant registry rescan`,
-        description: `Triggers a director rescan immediately and waits for completion`
+        label: `Legacy alias for rescan projects`,
+        description: `Compatibility alias; prefer core rescan projects`
       }
     },
     {
-      command: `delete tenant`,
+      command: `delete project`,
       old_command: null,
       PARAMS: [
         {
           prefix: null,
           optional: false,
           default: null,
-          description: `target tenant environment alias to remove`,
+          description: `target project environment alias to remove`,
           shapes: [
             `@{domain}`,
-            `@{tenant_id}`
+            `@{project_id}`
           ]
         }
       ],
       ABOUT: {
-        label: `Delete a tenant environment`,
-        description: `Removes a previously deployed tenant environment and its registered apps`
+        label: `Delete a project environment`,
+        description: `Removes a previously deployed project environment and its registered apps`
+      }
+    },
+    {
+      command: `delete tenant`,
+      old_command: `delete project`,
+      PARAMS: [],
+      ABOUT: {
+        label: `Legacy alias for delete project`,
+        description: `Compatibility alias; prefer core delete project`
       }
     },
     {
       command: `list`,
       PARAMS: [],
       ABOUT: {
-        label: `List tenants`,
-        description: `Returns the tenants currently registered in the service`
+        label: `List projects`,
+        description: `Returns the projects currently registered in the service`
       }
     },
     {

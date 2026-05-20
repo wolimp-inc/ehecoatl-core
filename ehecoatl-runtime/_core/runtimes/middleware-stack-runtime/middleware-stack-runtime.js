@@ -53,7 +53,7 @@ class MiddlewareStackRuntime {
     const { hooks } = plugin;
     const stackHooks = hooks.TRANSPORT.MIDDLEWARE_STACK;
     try {
-      if (executionContext.isAborted() || executionContext.tenantRoute.isRedirect()) {
+      if (executionContext.isAborted() || executionContext.projectRoute.isRedirect()) {
         await plugin.run(stackHooks.BREAK, executionContext, stackHooks.ERROR);
         return;
       }
@@ -68,7 +68,7 @@ class MiddlewareStackRuntime {
     } catch (error) {
       console.error(`[middleware-stack-runtime] http stack failed`, {
         url: executionContext?.requestData?.url ?? null,
-        route: executionContext?.tenantRoute?.pointsTo ?? null,
+        route: executionContext?.projectRoute?.pointsTo ?? null,
         error: error?.stack ?? error?.message ?? error
       });
       await plugin.run(stackHooks.ERROR, executionContext);
@@ -90,7 +90,7 @@ class MiddlewareStackRuntime {
     const { hooks } = plugin;
     const stackHooks = hooks.TRANSPORT.MIDDLEWARE_STACK;
     try {
-      if (executionContext.isAborted() || !executionContext.tenantRoute) {
+      if (executionContext.isAborted() || !executionContext.projectRoute) {
         await plugin.run(stackHooks.BREAK, executionContext, stackHooks.ERROR);
         return;
       }
@@ -105,7 +105,7 @@ class MiddlewareStackRuntime {
     } catch (error) {
       console.error(`[middleware-stack-runtime] ws-upgrade stack failed`, {
         url: executionContext?.requestData?.url ?? null,
-        route: executionContext?.tenantRoute?.pointsTo ?? null,
+        route: executionContext?.projectRoute?.pointsTo ?? null,
         error: error?.stack ?? error?.message ?? error
       });
       await plugin.run(stackHooks.ERROR, executionContext);
@@ -247,16 +247,16 @@ class MiddlewareStackRuntime {
   }
 
   async #buildRouteHttpStack(middlewareContext) {
-    const middlewareLabels = Array.isArray(middlewareContext.tenantRoute?.middleware)
-      ? middlewareContext.tenantRoute.middleware
+    const middlewareLabels = Array.isArray(middlewareContext.projectRoute?.middleware)
+      ? middlewareContext.projectRoute.middleware
       : [];
     if (middlewareLabels.length === 0) {
       return [];
     }
 
     const tenantHttpMiddlewares = (await resolveTenantMiddlewares(this.middlewareStackResolver)).http;
-    const appId = middlewareContext.tenantRoute?.origin?.appId ?? null;
-    const appMiddlewarePaths = resolveAppMiddlewarePathsFromRoute(middlewareContext.tenantRoute);
+    const appId = middlewareContext.projectRoute?.origin?.appId ?? null;
+    const appMiddlewarePaths = resolveAppMiddlewarePathsFromRoute(middlewareContext.projectRoute);
     const appHttpMiddlewares = appId
       ? (await this.middlewareStackResolver.loadAppMiddlewares(appId, {
           pathsByProtocol: appMiddlewarePaths
@@ -275,11 +275,11 @@ class MiddlewareStackRuntime {
   }
 
   async #buildWsUpgradeDescriptor(middlewareContext) {
-    const appId = middlewareContext.tenantRoute?.origin?.appId ?? null;
+    const appId = middlewareContext.projectRoute?.origin?.appId ?? null;
     if (!appId) return null;
 
     const appWsMiddlewares = (await this.middlewareStackResolver.loadAppMiddlewares(appId, {
-      pathsByProtocol: resolveAppMiddlewarePathsFromRoute(middlewareContext.tenantRoute)
+      pathsByProtocol: resolveAppMiddlewarePathsFromRoute(middlewareContext.projectRoute)
     })).ws ?? {};
     const middleware = appWsMiddlewares[`ws-upgrade`] ?? null;
     if (typeof middleware !== `function`) return null;
@@ -322,8 +322,8 @@ class MiddlewareStackRuntime {
 
   async #buildWsMessageDescriptor(wsMessageContext) {
     const tenantWsMiddlewares = (await resolveTenantMiddlewares(this.middlewareStackResolver)).ws ?? {};
-    const appId = wsMessageContext.tenantRoute?.origin?.appId ?? null;
-    const appMiddlewarePaths = resolveAppMiddlewarePathsFromRoute(wsMessageContext.tenantRoute);
+    const appId = wsMessageContext.projectRoute?.origin?.appId ?? null;
+    const appMiddlewarePaths = resolveAppMiddlewarePathsFromRoute(wsMessageContext.projectRoute);
     const appWsMiddlewares = appId
       ? (await this.middlewareStackResolver.loadAppMiddlewares(appId, {
           pathsByProtocol: appMiddlewarePaths
@@ -369,8 +369,8 @@ class MiddlewareStackRuntime {
   }
 }
 
-function resolveAppMiddlewarePathsFromRoute(tenantRoute) {
-  const folders = tenantRoute?.folders ?? {};
+function resolveAppMiddlewarePathsFromRoute(projectRoute) {
+  const folders = projectRoute?.folders ?? {};
   const httpPath = typeof folders.httpMiddlewaresRootFolder === `string` && folders.httpMiddlewaresRootFolder.trim()
     ? folders.httpMiddlewaresRootFolder.trim()
     : null;
@@ -441,8 +441,8 @@ function validateWsMessageContext(stackContext) {
   }
 
   const parsed = parseWsActionMessage(wsMessageData.raw, {
-    wsActionsAvailable: stackContext.tenantRoute?.wsActionsAvailable
-      ?? stackContext.tenantRoute?.upgrade?.wsActionsAvailable
+    wsActionsAvailable: stackContext.projectRoute?.wsActionsAvailable
+      ?? stackContext.projectRoute?.upgrade?.wsActionsAvailable
       ?? null
   });
   if (parsed.success !== true) {
@@ -469,8 +469,8 @@ async function dispatchWsActionMessage({
     return;
   }
 
-  const tenantId = stackContext.tenantRoute?.origin?.tenantId ?? null;
-  const appId = stackContext.tenantRoute?.origin?.appId ?? null;
+  const tenantId = stackContext.projectRoute?.origin?.tenantId ?? null;
+  const appId = stackContext.projectRoute?.origin?.appId ?? null;
   if (!tenantId || !appId) {
     stackContext.discard(`ws_action_target_unavailable`);
     return;
@@ -483,7 +483,7 @@ async function dispatchWsActionMessage({
     }),
     question,
     data: {
-      tenantRoute: stackContext.tenantRoute,
+      projectRoute: stackContext.projectRoute,
       sessionData: stackContext.sessionData,
       wsMessageData: stackContext.wsMessageData
     }

@@ -5,11 +5,11 @@ require(`module-alias/register`);
 const test = require(`node:test`);
 const assert = require(`node:assert/strict`);
 
-const tenantRoutesFindMatch = require(`@/utils/tenancy/tenant-routes-find-match`);
-const tenantRoutesCompiler = require(`@/utils/tenancy/tenant-routes-compiler`);
+const projectRoutesFindMatch = require(`@/utils/tenancy/tenant-routes-find-match`);
+const projectRoutesCompiler = require(`@/utils/tenancy/tenant-routes-compiler`);
 
 test(`tenant-routes-find-match returns normalized params for dynamic routes and preserves legacy substitutions`, () => {
-  const match = tenantRoutesFindMatch(`/blog/post-1`, [{
+  const match = projectRoutesFindMatch(`/blog/post-1`, [{
     type: 1,
     regexp: /^\/blog\/([^/]+)$/,
     keys: [`slug`],
@@ -30,7 +30,7 @@ test(`tenant-routes-find-match returns normalized params for dynamic routes and 
 });
 
 test(`tenant-routes-find-match preserves legacy substitutions when compiled keys include braces`, () => {
-  const match = tenantRoutesFindMatch(`/en/0.1.0-beta`, [{
+  const match = projectRoutesFindMatch(`/en/0.1.0-beta`, [{
     type: 1,
     regexp: /^\/([^/]+)\/([^/]+)$/,
     keys: [`{lang}`, `{version}`],
@@ -62,7 +62,7 @@ test(`tenant-routes-find-match preserves legacy substitutions when compiled keys
 });
 
 test(`tenant-routes-find-match keeps static routes compatible`, () => {
-  const match = tenantRoutesFindMatch(`/`, [{
+  const match = projectRoutesFindMatch(`/`, [{
     type: 0,
     pattern: `/`,
     route_data: {
@@ -76,12 +76,12 @@ test(`tenant-routes-find-match keeps static routes compatible`, () => {
 });
 
 test(`tenant-routes-compiler dynamic params match email-like path segments`, () => {
-  const compiledRoutes = tenantRoutesCompiler({
+  const compiledRoutes = projectRoutesCompiler({
     "/confirm/{email}/{token}": {
       pointsTo: `run > newsletter@confirm`
     }
   });
-  const match = tenantRoutesFindMatch(
+  const match = projectRoutesFindMatch(
     `/confirm/peclml14@gmail.com/c7a290c8c2524fff68ea25beb0feffeeb800b73395335f6f3ebb6c7a97eb237b`,
     compiledRoutes
   );

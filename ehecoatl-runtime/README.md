@@ -17,7 +17,7 @@ This folder is the packaged runtime payload copied into `/opt/ehecoatl` during i
 - `_core/`
   Kernels, runtimes, resolvers, services, managers, and orchestrators.
 - `builtin-extensions/`
-  Packaged adapters, plugins, middlewares, tenant kits, and app kits.
+  Packaged adapters, plugins, middlewares, project kits, and app kits.
 - `systemd/`
   The packaged systemd unit template.
 

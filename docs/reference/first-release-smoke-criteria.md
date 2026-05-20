@@ -49,10 +49,10 @@ Verify a tenant and app deploy path:
 ehecoatl core deploy tenant "@example.com" -t "test"
 ```
 
-Confirm that the deploy path creates the tenant, promotes the embedded default `www` app from the tenant kit, and triggers the direct `director` tenant rescan successfully.
+Confirm that the deploy path creates the tenant, promotes the embedded default `www` app from the project kit, and triggers the direct `director` tenant rescan successfully.
 
 ```bash
 ehecoatl app "www@example.com" status
 ```
 
-When zip kit artifacts are available, repeat the same deploy path with `test.zip` in the tenant-kit root. Zip kits must contain kit files directly at the archive root.
+When zip kit artifacts are available, repeat the same deploy path with `test.zip` in the project-kits root. Zip kits must contain kit files directly at the archive root.

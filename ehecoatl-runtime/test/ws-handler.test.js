@@ -16,7 +16,7 @@ test(`ws handler upgrades after route resolution and websocket middleware stack 
   const executionContext = createExecutionContext({
     req,
     res,
-    tenantRoute: createWsTenantRoute(),
+    projectRoute: createWsTenantRoute(),
     sessionData: {
       auth: {
         username: `alice`,
@@ -70,7 +70,7 @@ test(`ws handler writes http response and skips upgrade when websocket middlewar
   const executionContext = createExecutionContext({
     req,
     res,
-    tenantRoute: createWsTenantRoute(),
+    projectRoute: createWsTenantRoute(),
     async onRunWsUpgradeMiddlewareStack() {
       this.responseData.status = 403;
       this.responseData.body = `Forbidden`;
@@ -166,7 +166,7 @@ test(`ws handler setup delegates open message and close lifecycle to ws hub mana
 function createExecutionContext({
   req,
   res,
-  tenantRoute,
+  projectRoute,
   sessionData = {},
   onResolveRoute = null,
   onRunWsUpgradeMiddlewareStack = null
@@ -176,7 +176,7 @@ function createExecutionContext({
     res,
     ip: null,
     requestData: null,
-    tenantRoute: null,
+    projectRoute: null,
     responseData: {
       status: 200,
       body: null,
@@ -223,7 +223,7 @@ function createExecutionContext({
         if (typeof onResolveRoute === `function`) {
           await onResolveRoute.call(executionContext, params);
         }
-        executionContext.tenantRoute = tenantRoute;
+        executionContext.projectRoute = projectRoute;
       }
     }
   };

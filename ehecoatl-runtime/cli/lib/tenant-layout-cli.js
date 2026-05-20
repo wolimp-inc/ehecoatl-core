@@ -3,6 +3,15 @@
 const path = require(`node:path`);
 
 const tenantLayout = require(path.join(__dirname, `..`, `..`, `utils`, `tenancy`, `tenant-layout.js`));
+const legacyTenantsBase = String(process.env.EHECOATL_LEGACY_TENANTS_BASE ?? ``).trim() || null;
+
+function scanArgs(baseArg) {
+  return {
+    projectsBase: baseArg,
+    tenantsBase: legacyTenantsBase,
+    legacyTenantsBase
+  };
+}
 
 const [
   command,
@@ -32,28 +41,28 @@ async function main() {
     case `find-app-json-by-process-user`:
       return outputJson(
         tenantLayout.findOpaqueAppRecordByProcessUserSync({
-          tenantsBase: args[0],
+          ...scanArgs(args[0]),
           processUser: args[1]
         })
       );
     case `find-tenant-json-by-domain`:
       return outputJson(
         tenantLayout.findOpaqueTenantRecordByDomainSync({
-          tenantsBase: args[0],
+          ...scanArgs(args[0]),
           tenantDomain: args[1]
         })
       );
     case `find-tenant-json-by-id`:
       return outputJson(
         tenantLayout.findOpaqueTenantRecordByIdSync({
-          tenantsBase: args[0],
+          ...scanArgs(args[0]),
           tenantId: args[1]
         })
       );
     case `find-app-json-by-domain-and-app-name`:
       return outputJson(
         tenantLayout.findOpaqueAppRecordByDomainAndAppNameSync({
-          tenantsBase: args[0],
+          ...scanArgs(args[0]),
           tenantDomain: args[1],
           appName: args[2]
         })
@@ -61,14 +70,14 @@ async function main() {
     case `find-app-json-by-id`:
       return outputJson(
         tenantLayout.findOpaqueAppRecordByIdSync({
-          tenantsBase: args[0],
+          ...scanArgs(args[0]),
           appId: args[1]
         })
       );
     case `find-app-json-by-tenant-id-and-app-id`:
       return outputJson(
         tenantLayout.findOpaqueAppRecordByTenantIdAndAppIdSync({
-          tenantsBase: args[0],
+          ...scanArgs(args[0]),
           tenantId: args[1],
           appId: args[2]
         })
@@ -76,7 +85,7 @@ async function main() {
     case `find-app-json-by-tenant-id-and-app-name`:
       return outputJson(
         tenantLayout.findOpaqueAppRecordByTenantIdAndAppNameSync({
-          tenantsBase: args[0],
+          ...scanArgs(args[0]),
           tenantId: args[1],
           appName: args[2]
         })
@@ -84,8 +93,12 @@ async function main() {
     case `list-tenants`:
       return outputJson(
         tenantLayout.scanOpaqueTenantRecordsSync({
-          tenantsBase: args[0]
+          ...scanArgs(args[0])
         }).map((record) => ({
+          projectId: record.projectId,
+          projectDomain: record.projectDomain,
+          projectRoot: record.projectRoot,
+          projectConfigPath: record.projectConfigPath,
           tenantId: record.tenantId,
           tenantDomain: record.tenantDomain,
           tenantRoot: record.tenantRoot,
@@ -96,14 +109,14 @@ async function main() {
     case `list-apps-by-tenant-id`:
       return outputJson(
         tenantLayout.findOpaqueTenantRecordByIdSync({
-          tenantsBase: args[0],
+          ...scanArgs(args[0]),
           tenantId: args[1]
         })?.apps ?? []
       );
     case `resolve-scope-by-path`:
       return outputJson(
         tenantLayout.resolveOpaqueScopeRecordByPathSync({
-          tenantsBase: args[0],
+          ...scanArgs(args[0]),
           targetPath: args[1]
         })
       );
@@ -124,6 +137,8 @@ function patchTenantConfig([configPath, tenantId, tenantDomain]) {
   const { [legacyRepoField]: _legacyRepoField, ...source } = current?.source && typeof current.source === `object` ? current.source : {};
   const next = {
     ...current,
+    projectId: tenantLayout.normalizeOpaqueId(tenantId),
+    projectDomain: tenantLayout.normalizeTenantDomain(tenantDomain),
     tenantId: tenantLayout.normalizeOpaqueId(tenantId),
     tenantDomain: tenantLayout.normalizeTenantDomain(tenantDomain),
     alias: tenantLayout.normalizeDomainAliasList(current?.alias),

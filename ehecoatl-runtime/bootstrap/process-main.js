@@ -97,15 +97,16 @@ module.exports = async function boot() {
     _endpointTarget,
     payload
   ) => {
-    const appRoot = payload?.data?.tenantRoute?.rootFolder;
-    const tenantId = payload?.data?.tenantRoute?.tenantId;
-    const appId = payload?.data?.tenantRoute?.appId;
+    const projectRoute = payload?.data?.projectRoute ?? null;
+    const appRoot = projectRoute?.folders?.rootFolder ?? projectRoute?.rootFolder ?? null;
+    const tenantId = projectRoute?.origin?.projectId ?? projectRoute?.projectId ?? projectRoute?.origin?.tenantId ?? projectRoute?.tenantId;
+    const appId = projectRoute?.origin?.appId ?? projectRoute?.appId;
     await multiProcessOrchestrator.forkProcess(`appScope`, `isolatedRuntime`, {
       tenantId,
       appId,
       appRoot,
-      appDomain: payload?.data?.tenantRoute?.domain ?? null,
-      appName: payload?.data?.tenantRoute?.appName ?? null,
+      appDomain: projectRoute?.origin?.domain ?? projectRoute?.origin?.projectDomain ?? projectRoute?.projectDomain ?? projectRoute?.domain ?? null,
+      appName: projectRoute?.origin?.appName ?? projectRoute?.appName ?? null,
       reason: `temporary_rpc_spawn`
     });
     return true;

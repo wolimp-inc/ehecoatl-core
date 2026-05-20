@@ -7,6 +7,7 @@
 const {
   serviceInstallRoot,
   serviceOverrideRoot,
+  serviceProjectsRoot,
   serviceTenantsRoot,
   serviceLibRoot,
   serviceLogRoot,
@@ -37,6 +38,7 @@ module.exports = {
       error: [`${serviceLogRoot}/error`, null, null, `0775`]
     },
     RUNTIME: {
+      projects: [`${serviceProjectsRoot}`, null, null, `0711`, false],
       tenants: [`${serviceTenantsRoot}`, null, null, `0711`, false],
       lib: [`${serviceLibRoot}`, null, null, `0750`],
       ssl: [`${serviceLibRoot}/ssl`, null, null, `0750`],
@@ -53,6 +55,7 @@ module.exports = {
       customPlugins: [`${serviceSrvRoot}/plugins`],
       customAppKits: [`${serviceSrvRoot}/app-kits`],
       customAdapters: [`${serviceSrvRoot}/adapters`],
+      customProjectKits: [`${serviceSrvRoot}/project-kits`],
       customTenantKits: [`${serviceSrvRoot}/tenant-kits`],
       customMiddlewares: [`${serviceSrvRoot}/middlewares`],
     }

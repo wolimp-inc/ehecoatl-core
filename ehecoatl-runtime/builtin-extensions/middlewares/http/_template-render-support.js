@@ -33,16 +33,16 @@ function resolveI18nSourcePaths(rootFolder, entries = [], {
 }
 
 async function resolveActionRenderTemplatePath({
-  tenantRoute,
+  projectRoute,
   storage,
   template
 }) {
   const primaryRootFolder = normalizeRootFolder(
-    tenantRoute?.folders?.assetsRootFolder ?? null,
+    projectRoute?.folders?.assetsRootFolder ?? null,
     `render.template assets root`
   );
   const fallbackRootFolder = normalizeRootFolder(
-    tenantRoute?.folders?.assetsSharedRootFolder ?? null,
+    projectRoute?.folders?.assetsSharedRootFolder ?? null,
     `render.template shared assets root`
   );
   const primaryPath = resolveRelativePathWithinRoot(primaryRootFolder, template, {

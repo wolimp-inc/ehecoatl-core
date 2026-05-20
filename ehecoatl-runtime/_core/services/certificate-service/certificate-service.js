@@ -43,15 +43,17 @@ class CertificateService extends AdaptableUseCase {
       return null;
     }
 
-    const tenantRegistryResolver = this.kernelContext?.useCases?.tenantRegistryResolver ?? null;
-    if (!tenantRegistryResolver) {
+    const projectRegistryResolver = this.kernelContext?.useCases?.projectRegistryResolver
+      ?? this.kernelContext?.useCases?.tenantRegistryResolver
+      ?? null;
+    if (!projectRegistryResolver) {
       return null;
     }
-    const tenantRecord = tenantRegistryResolver.getTenantRecordById?.(normalizedTenantId) ?? null;
+    const tenantRecord = projectRegistryResolver.getTenantRecordById?.(normalizedTenantId) ?? null;
     const certbotEmail = this.#resolveCertbotEmail(tenantRecord);
 
     const cooldownMs = Number(this.config.triggerCooldownMs ?? 0);
-    const triggerState = tenantRegistryResolver.getLetsEncryptTriggerState?.(normalizedTenantId, normalizedDomain) ?? null;
+    const triggerState = projectRegistryResolver.getLetsEncryptTriggerState?.(normalizedTenantId, normalizedDomain) ?? null;
     const now = Date.now();
     if (triggerState && Number(triggerState.expiresAt ?? 0) > now) {
       return null;
@@ -67,7 +69,7 @@ class CertificateService extends AdaptableUseCase {
       });
 
       if (triggerResult?.started) {
-        await tenantRegistryResolver.markLetsEncryptTriggerStarted?.(normalizedTenantId, normalizedDomain, {
+        await projectRegistryResolver.markLetsEncryptTriggerStarted?.(normalizedTenantId, normalizedDomain, {
           startedAt: now,
           expiresAt: now + Math.max(0, cooldownMs),
           source: `certificate-service:auto-trigger`

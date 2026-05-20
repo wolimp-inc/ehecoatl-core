@@ -86,7 +86,7 @@ class RpcResolver extends AdaptableUseCase {
 }
 
 function attachColdWaitMeta(payload, coldWaitMs) {
-  if (!payload || !payload.data?.tenantRoute?.target?.run?.action) return;
+  if (!payload || !payload.data?.projectRoute?.target?.run?.action) return;
 
   payload.internalMeta = {
     ...(payload.internalMeta ?? {}),

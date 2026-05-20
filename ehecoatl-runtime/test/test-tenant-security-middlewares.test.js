@@ -8,11 +8,11 @@ const test = require(`node:test`);
 const assert = require(`node:assert/strict`);
 
 const TenantRoute = require(`@/_core/runtimes/ingress-runtime/execution/tenant-route`);
-const sessionMiddleware = require(`../builtin-extensions/tenant-kits/test/shared/app/http/middlewares/session`);
-const csrfMiddleware = require(`../builtin-extensions/tenant-kits/test/shared/app/http/middlewares/csrf`);
-const corsMiddleware = require(`../builtin-extensions/tenant-kits/test/shared/app/http/middlewares/cors`);
-const authMiddleware = require(`../builtin-extensions/tenant-kits/test/shared/app/http/middlewares/auth`);
-const guestMiddleware = require(`../builtin-extensions/tenant-kits/test/shared/app/http/middlewares/guest`);
+const sessionMiddleware = require(`../builtin-extensions/project-kits/test/shared/app/http/middlewares/session`);
+const csrfMiddleware = require(`../builtin-extensions/project-kits/test/shared/app/http/middlewares/csrf`);
+const corsMiddleware = require(`../builtin-extensions/project-kits/test/shared/app/http/middlewares/cors`);
+const authMiddleware = require(`../builtin-extensions/project-kits/test/shared/app/http/middlewares/auth`);
+const guestMiddleware = require(`../builtin-extensions/project-kits/test/shared/app/http/middlewares/guest`);
 const authLoginAction = require(`../builtin-extensions/app-kits/test/app/http/actions/auth-login`);
 const authLogoutAction = require(`../builtin-extensions/app-kits/test/app/http/actions/auth-logout`);
 const authSessionAction = require(`../builtin-extensions/app-kits/test/app/http/actions/auth-session`);
@@ -75,7 +75,7 @@ test(`session middleware with login action persists auth session and csrf token`
     const result = await authLoginAction.index({
       requestData: context.requestData,
       sessionData: context.sessionData,
-      tenantRoute: context.tenantRoute,
+      projectRoute: context.projectRoute,
       services: context.services
     });
     context.setStatus(result.status);
@@ -302,7 +302,7 @@ function createMiddlewareContext({
   }
 
   return {
-    tenantRoute: new TenantRoute({
+    projectRoute: new TenantRoute({
       pointsTo: `run > example@index`,
       authScope,
       cors,

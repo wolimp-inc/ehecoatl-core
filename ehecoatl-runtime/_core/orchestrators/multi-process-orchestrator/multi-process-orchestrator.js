@@ -103,20 +103,24 @@ class MultiProcessOrchestrator {
 }
 
 function normalizeForkContext(context = {}) {
-  const tenantId = context.tenant_id ?? context.tenantId ?? null;
+  const tenantId = context.project_id ?? context.projectId ?? context.tenant_id ?? context.tenantId ?? null;
   const appId = context.app_id ?? context.appId ?? null;
   const appName = context.appName ?? null;
   const appDomain = context.appDomain ?? null;
-  const tenantDomain = context.tenantDomain ?? deriveTenantDomainFromAppDomain(appName, appDomain);
+  const tenantDomain = context.projectDomain ?? context.tenantDomain ?? deriveTenantDomainFromAppDomain(appName, appDomain);
 
   return Object.freeze({
     ...context,
+    projectId: tenantId,
     tenantId,
     appId,
+    project_id: tenantId,
     tenant_id: tenantId,
     app_id: appId,
+    projectDomain: tenantDomain,
     tenantDomain,
-    tenantRoot: context.tenantRoot ?? null,
+    projectRoot: context.projectRoot ?? context.tenantRoot ?? null,
+    tenantRoot: context.projectRoot ?? context.tenantRoot ?? null,
     appRoot: context.appRoot ?? null,
     appDomain,
     appName,
@@ -140,7 +144,7 @@ function buildProcessVariables(layerKey, processKey, context) {
     return [];
   }
 
-  if (layerKey === `tenantScope` && processKey === `transport`) {
+  if ((layerKey === `projectScope` || layerKey === `tenantScope`) && processKey === `transport`) {
     return [
       context.tenantId,
       context.tenantDomain,
@@ -166,7 +170,7 @@ function buildProcessVariables(layerKey, processKey, context) {
 }
 
 function buildFirewallLaunchOptions(layerKey, processKey, context) {
-  if (layerKey === `tenantScope` && processKey === `transport`) {
+  if ((layerKey === `projectScope` || layerKey === `tenantScope`) && processKey === `transport`) {
     const localProxyPorts = [context.httpPort, context.wsPort]
       .map((value) => Number(value))
       .filter((value) => Number.isInteger(value) && value >= 1 && value <= 65535);

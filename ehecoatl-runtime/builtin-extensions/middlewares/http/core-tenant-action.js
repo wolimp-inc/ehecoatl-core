@@ -10,21 +10,21 @@ const {
 
 module.exports = async function runMiddleware(middlewareContext, next) {
   const forward = createFlowController(next);
-  const { tenantRoute, requestData, sessionData, services } = middlewareContext;
+  const { projectRoute, requestData, sessionData, services } = middlewareContext;
 
-  if (!tenantRoute.target?.run?.action) {
+  if (!projectRoute.target?.run?.action) {
     return forward.continue();
   }
   if (middlewareContext.meta) {
     middlewareContext.meta.action = true;
   }
 
-  const tenantProcessLabel = resolveTenantProcessLabel(middlewareContext);
+  const projectProcessLabel = resolveProjectProcessLabel(middlewareContext);
   let rpcResponse = null;
   try {
-    rpcResponse = await askTenantAction({
-      tenantProcessLabel,
-      tenantRoute,
+    rpcResponse = await askProjectAction({
+      projectProcessLabel,
+      projectRoute,
       requestData,
       sessionData,
       meta: middlewareContext.meta,
@@ -34,7 +34,7 @@ module.exports = async function runMiddleware(middlewareContext, next) {
     applyResponse(middlewareContext, createTenantFacingErrorResponse({
       status: 502,
       productionBody: `Bad Gateway`,
-      nonProductionBody: `Tenant action is unavailable in this non-production environment. See runtime logs for details.`
+      nonProductionBody: `Project action is unavailable in this non-production environment. See runtime logs for details.`
     }));
     return forward.break();
   }
@@ -65,7 +65,7 @@ module.exports = async function runMiddleware(middlewareContext, next) {
       applyResponse(middlewareContext, createTenantFacingErrorResponse({
         status: 502,
         productionBody: `Bad Gateway`,
-        nonProductionBody: `Tenant action returned no response in this non-production environment. See runtime logs for details.`
+        nonProductionBody: `Project action returned no response in this non-production environment. See runtime logs for details.`
       }));
     }
   } else if (response !== undefined) {
@@ -74,16 +74,16 @@ module.exports = async function runMiddleware(middlewareContext, next) {
     applyResponse(middlewareContext, createTenantFacingErrorResponse({
       status: 502,
       productionBody: `Bad Gateway`,
-      nonProductionBody: `Tenant action returned no response in this non-production environment. See runtime logs for details.`
+      nonProductionBody: `Project action returned no response in this non-production environment. See runtime logs for details.`
     }));
   }
 
   return forward.continue();
 };
 
-async function askTenantAction({
-  tenantProcessLabel,
-  tenantRoute,
+async function askProjectAction({
+  projectProcessLabel,
+  projectRoute,
   requestData,
   sessionData,
   meta,
@@ -92,18 +92,18 @@ async function askTenantAction({
   const internalMeta = buildRequestInternalMeta(requestData, meta);
   if (typeof services.rpc.askDetailed === `function`) {
     return await services.rpc.askDetailed({
-      target: tenantProcessLabel,
+      target: projectProcessLabel,
       question: `tenantAction`,
-      data: { tenantRoute, requestData, sessionData },
+      data: { projectRoute, requestData, sessionData },
       internalMeta
     });
   }
 
   return {
     data: await services.rpc.ask({
-      target: tenantProcessLabel,
+      target: projectProcessLabel,
       question: `tenantAction`,
-      data: { tenantRoute, requestData, sessionData },
+      data: { projectRoute, requestData, sessionData },
       internalMeta
     }),
     internalMeta: null
@@ -118,7 +118,7 @@ async function applySuccessfulActionResponse(middlewareContext, response) {
       applyResponse(middlewareContext, createTenantFacingErrorResponse({
         status: 500,
         productionBody: `Internal Server Error`,
-        nonProductionBody: `Tenant action returned an invalid response in this non-production environment.`,
+        nonProductionBody: `Project action returned an invalid response in this non-production environment.`,
         nonProductionDetails: [
           `Action responses may define either body or render, but not both.`
         ]
@@ -166,7 +166,7 @@ async function applyRenderResponse(middlewareContext, response) {
   let mergedI18nSources = [];
   try {
     const resolvedTemplate = await resolveActionRenderTemplatePath({
-      tenantRoute: middlewareContext.tenantRoute,
+      projectRoute: middlewareContext.projectRoute,
       storage: middlewareContext?.services?.storage ?? null,
       template: render?.template ?? ``
     });
@@ -176,7 +176,7 @@ async function applyRenderResponse(middlewareContext, response) {
       applyResponse(middlewareContext, createTenantFacingErrorResponse({
         status: 404,
         productionBody: `Not Found`,
-        nonProductionBody: `Tenant action render target was not found in this non-production environment.`,
+        nonProductionBody: `Project action render target was not found in this non-production environment.`,
         nonProductionDetails: [
           `Template path: ${resolvedTemplate.path}`
         ]
@@ -185,12 +185,12 @@ async function applyRenderResponse(middlewareContext, response) {
     }
 
     const routeI18nSources = resolveI18nSourcePaths(
-      middlewareContext?.tenantRoute?.folders?.rootFolder ?? ``,
-      middlewareContext?.tenantRoute?.i18n ?? [],
+      middlewareContext?.projectRoute?.folders?.rootFolder ?? ``,
+      middlewareContext?.projectRoute?.i18n ?? [],
       { entryLabel: `Route i18n` }
     );
     const renderI18nSources = resolveI18nSourcePaths(
-      middlewareContext?.tenantRoute?.folders?.rootFolder ?? ``,
+      middlewareContext?.projectRoute?.folders?.rootFolder ?? ``,
       render?.i18n ?? [],
       { entryLabel: `render.i18n` }
     );
@@ -199,7 +199,7 @@ async function applyRenderResponse(middlewareContext, response) {
     applyResponse(middlewareContext, createTenantFacingErrorResponse({
       status: 500,
       productionBody: `Internal Server Error`,
-      nonProductionBody: `Tenant action render configuration is invalid in this non-production environment.`,
+      nonProductionBody: `Project action render configuration is invalid in this non-production environment.`,
       nonProductionDetails: [
         error?.message ?? String(error)
       ]
@@ -215,7 +215,7 @@ async function applyRenderResponse(middlewareContext, response) {
       {
         request: middlewareContext?.requestData ?? null,
         session: middlewareContext?.sessionData ?? null,
-        route: middlewareContext?.tenantRoute ?? null,
+        route: middlewareContext?.projectRoute ?? null,
         meta: middlewareContext?.meta ?? null,
         view: {
           ...(middlewareContext?.viewData ?? {}),
@@ -227,7 +227,7 @@ async function applyRenderResponse(middlewareContext, response) {
     applyResponse(middlewareContext, createTenantFacingErrorResponse({
       status: 500,
       productionBody: `Internal Server Error`,
-      nonProductionBody: `Tenant action template rendering failed in this non-production environment.`,
+      nonProductionBody: `Project action template rendering failed in this non-production environment.`,
       nonProductionDetails: [
         error?.message ?? String(error)
       ]
@@ -259,9 +259,13 @@ async function applyRenderResponse(middlewareContext, response) {
   return true;
 }
 
-function resolveTenantProcessLabel(middlewareContext) {
-  const tenantId = middlewareContext.tenantRoute?.origin?.tenantId ?? null;
-  const appId = middlewareContext.tenantRoute?.origin?.appId ?? null;
+function resolveProjectProcessLabel(middlewareContext) {
+  const tenantId = middlewareContext.projectRoute?.origin?.projectId
+    ?? middlewareContext.projectRoute?.origin?.tenantId
+    ?? middlewareContext.projectRoute?.projectId
+    ?? middlewareContext.projectRoute?.tenantId
+    ?? null;
+  const appId = middlewareContext.projectRoute?.origin?.appId ?? null;
   if (tenantId && appId) {
     return buildIsolatedRuntimeLabel({
       tenantId,
@@ -269,7 +273,7 @@ function resolveTenantProcessLabel(middlewareContext) {
     });
   }
 
-  return middlewareContext.tenantRoute?.origin?.hostname ?? `isolated-runtime`;
+  return middlewareContext.projectRoute?.origin?.hostname ?? `isolated-runtime`;
 }
 
 function applyResponse(middlewareContext, response) {

@@ -32,7 +32,7 @@ module.exports = async function writeHttpResponse(executionContext) {
   await run(hooks.RESPONSE.WRITE.START);
   try {
     const responseHeaders = { ...(headers ?? {}) };
-    applyRouteCacheControlDefault(responseHeaders, executionContext.tenantRoute);
+    applyRouteCacheControlDefault(responseHeaders, executionContext.projectRoute);
     stripHeader(responseHeaders, `x-accel-redirect`);
     const requestId = executionContext.meta?.requestId ?? executionContext.requestData?.requestId ?? null;
     if (requestId && !hasHeader(responseHeaders, `x-request-id`)) {
@@ -239,8 +239,8 @@ function appendHeader(headers, key, value) {
   headers[headerKey] = [currentValue, value];
 }
 
-function applyRouteCacheControlDefault(headers, tenantRoute) {
-  const cacheControl = normalizeRouteCachePolicy(tenantRoute?.cache).cacheControl;
+function applyRouteCacheControlDefault(headers, projectRoute) {
+  const cacheControl = normalizeRouteCachePolicy(projectRoute?.cache).cacheControl;
   if (!cacheControl) return;
   if (hasHeader(headers, `cache-control`)) return;
   headers[`Cache-Control`] = cacheControl;

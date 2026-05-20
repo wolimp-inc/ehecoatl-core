@@ -12,16 +12,18 @@ const TENANT_OPAQUE_ID_LENGTH = 12;
 const APP_OPAQUE_ID_LENGTH = 6;
 const OPAQUE_ID_LENGTH = TENANT_OPAQUE_ID_LENGTH;
 const OPAQUE_ID_ALPHABET = `abcdefghijklmnopqrstuvwxyz0123456789`;
-const tenantDirPrefix = `tenant_`;
+const projectDirPrefix = `project_`;
+const legacyTenantDirPrefix = `tenant_`;
+const tenantDirPrefix = projectDirPrefix;
 const appDirPrefix = `app_`;
 const tenantOpaqueIdPattern = new RegExp(`^[a-z0-9]{${TENANT_OPAQUE_ID_LENGTH}}$`);
 const appOpaqueIdPattern = new RegExp(`^[a-z0-9]{${APP_OPAQUE_ID_LENGTH}}$`);
 const opaqueIdPattern = tenantOpaqueIdPattern;
 const tenantDirSuffixPattern = /^[a-z0-9.-]+$/;
 const appDirSuffixPattern = /^[a-z0-9._-]+$/;
-const tenantDirPattern = new RegExp(`^${tenantDirPrefix}(.+)$`);
+const tenantDirPattern = new RegExp(`^(?:${projectDirPrefix}|${legacyTenantDirPrefix})(.+)$`);
 const appDirPattern = new RegExp(`^${appDirPrefix}(.+)$`);
-const legacyOpaqueTenantDirPattern = new RegExp(`^${tenantDirPrefix}([a-z0-9]{${TENANT_OPAQUE_ID_LENGTH}})$`);
+const legacyOpaqueTenantDirPattern = new RegExp(`^${legacyTenantDirPrefix}([a-z0-9]{${TENANT_OPAQUE_ID_LENGTH}})$`);
 const legacyOpaqueAppDirPattern = new RegExp(`^${appDirPrefix}([a-z0-9]{${APP_OPAQUE_ID_LENGTH}})$`);
 const appConfigDirName = `config`;
 const tenantSharedConfigRelativePath = path.join(`shared`, appConfigDirName);
@@ -84,6 +86,10 @@ function validateTenantDirSuffix(tenantDomain) {
   return normalizedTenantDomain;
 }
 
+function normalizeProjectDomain(domain) {
+  return normalizeTenantDomain(domain);
+}
+
 function validateAppDirSuffix(appName) {
   const normalizedAppName = normalizeAppName(appName);
   if (!normalizedAppName || !appDirSuffixPattern.test(normalizedAppName)) {
@@ -133,6 +139,10 @@ function buildTenantDirName(tenantDomain) {
   return `${tenantDirPrefix}${validateTenantDirSuffix(tenantDomain)}`;
 }
 
+function buildProjectDirName(projectDomain) {
+  return buildTenantDirName(projectDomain);
+}
+
 function buildAppDirName(appName) {
   return `${appDirPrefix}${validateAppDirSuffix(appName)}`;
 }
@@ -143,6 +153,7 @@ function parseTenantDirName(name) {
   const tenantDomain = normalizeTenantDomain(match[1]);
   if (!tenantDomain || !tenantDirSuffixPattern.test(tenantDomain)) return null;
   return Object.freeze({
+    projectDomain: tenantDomain,
     tenantDomain
   });
 }
@@ -205,16 +216,16 @@ function generateUniqueOpaqueId({
   randomBytes
 }) {
   const normalizedPrefix = String(prefix ?? ``).trim();
-  if (normalizedPrefix !== tenantDirPrefix && normalizedPrefix !== appDirPrefix) {
-    throw new Error(`generateUniqueOpaqueId requires prefix "${tenantDirPrefix}" or "${appDirPrefix}"`);
+  if (![projectDirPrefix, legacyTenantDirPrefix, appDirPrefix].includes(normalizedPrefix)) {
+    throw new Error(`generateUniqueOpaqueId requires prefix "${projectDirPrefix}", "${legacyTenantDirPrefix}" or "${appDirPrefix}"`);
   }
   if (typeof exists !== `function`) {
     throw new Error(`generateUniqueOpaqueId requires an exists callback`);
   }
 
-  const idLength = normalizedPrefix === tenantDirPrefix
-    ? TENANT_OPAQUE_ID_LENGTH
-    : APP_OPAQUE_ID_LENGTH;
+  const idLength = normalizedPrefix === appDirPrefix
+    ? APP_OPAQUE_ID_LENGTH
+    : TENANT_OPAQUE_ID_LENGTH;
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     const id = generateOpaqueId({ length: idLength, randomBytes });
@@ -246,29 +257,29 @@ function normalizeTenantConfig(rawConfig = {}, {
   expectedEhecoatlVersion = null
 } = {}) {
   if (!rawConfig || typeof rawConfig !== `object` || Array.isArray(rawConfig)) {
-    throw new Error(`Tenant config must contain a JSON object`);
+    throw new Error(`Project config must contain a JSON object`);
   }
 
   const fallback = resolveDefaultTenantConfig(defaultAppName);
-  const tenantId = normalizeOpaqueId(rawConfig.tenantId);
+  const tenantId = normalizeOpaqueId(rawConfig.projectId ?? rawConfig.tenantId);
   if (!isTenantOpaqueId(tenantId)) {
-    throw new Error(`Tenant config is missing a valid tenantId`);
+    throw new Error(`Project config is missing a valid projectId`);
   }
   if (expectedTenantId && tenantId !== normalizeOpaqueId(expectedTenantId)) {
-    throw new Error(`Tenant config tenantId does not match folder name`);
+    throw new Error(`Project config projectId does not match folder name`);
   }
 
-  const tenantDomain = normalizeTenantDomain(rawConfig.tenantDomain || fallbackTenantDomain);
+  const tenantDomain = normalizeTenantDomain(rawConfig.projectDomain || rawConfig.tenantDomain || fallbackTenantDomain);
   if (!tenantDomain) {
-    throw new Error(`Tenant config is missing tenantDomain`);
+    throw new Error(`Project config is missing projectDomain`);
   }
   validateTenantDirSuffix(tenantDomain);
   if (expectedTenantDomain && tenantDomain !== normalizeTenantDomain(expectedTenantDomain)) {
-    throw new Error(`Tenant config tenantDomain does not match folder name`);
+    throw new Error(`Project config projectDomain does not match folder name`);
   }
   const ehecoatlVersion = validateEhecoatlVersion(rawConfig, {
     expectedEhecoatlVersion,
-    configLabel: `Tenant config`
+    configLabel: `Project config`
   });
 
   const configuredMode = typeof rawConfig?.appRoutingMode === `string`
@@ -280,6 +291,8 @@ function normalizeTenantConfig(rawConfig = {}, {
     : rawConfig?.appRouting?.defaultAppName;
 
   return Object.freeze({
+    projectId: tenantId,
+    projectDomain: tenantDomain,
     tenantId,
     tenantDomain,
     ...(ehecoatlVersion ? { ehecoatlVersion } : {}),
@@ -437,67 +450,104 @@ function resolveMergedAppConfigSync({
   });
 }
 
-function scanOpaqueTenantRecordsSync({ tenantsBase }) {
+function resolveProjectScanBases({
+  projectsBase = null,
+  tenantsBase = null,
+  legacyTenantsBase = null
+} = {}) {
+  const bases = [];
+  const addBase = (base, legacy = false) => {
+    const normalizedBase = String(base ?? ``).trim();
+    if (!normalizedBase) return;
+    if (bases.some((entry) => entry.base === normalizedBase)) return;
+    bases.push(Object.freeze({ base: normalizedBase, legacy }));
+  };
+
+  addBase(projectsBase ?? tenantsBase, false);
+  addBase(legacyTenantsBase, true);
+  if (projectsBase && tenantsBase && projectsBase !== tenantsBase) {
+    addBase(tenantsBase, true);
+  }
+  return Object.freeze(bases);
+}
+
+function scanOpaqueTenantRecordsSync({ tenantsBase = null, projectsBase = null, legacyTenantsBase = null } = {}) {
   const tenantRecords = [];
-  for (const entry of safeReadDirentsSync(tenantsBase)) {
-    if (!entry?.isDirectory?.()) continue;
-    const tenantMatch = parseTenantDirName(entry.name);
-    if (!tenantMatch) continue;
+  const seenProjectIds = new Set();
+  for (const scanBase of resolveProjectScanBases({ tenantsBase, projectsBase, legacyTenantsBase })) {
+    for (const entry of safeReadDirentsSync(scanBase.base)) {
+      if (!entry?.isDirectory?.()) continue;
+      const tenantMatch = parseTenantDirName(entry.name);
+      if (!tenantMatch) continue;
 
-    const tenantRoot = path.join(tenantsBase, entry.name);
-    const tenantConfigPath = path.join(tenantRoot, `config.json`);
-    const tenantConfig = normalizeTenantConfig(
-      safeReadJsonFileSync(tenantConfigPath) ?? {},
-      { expectedTenantDomain: tenantMatch.tenantDomain }
-    );
-
-    const apps = [];
-    for (const appEntry of safeReadDirentsSync(tenantRoot)) {
-      if (!appEntry?.isDirectory?.()) continue;
-      const appMatch = parseAppDirName(appEntry.name);
-      if (!appMatch) continue;
-
-      const appRoot = path.join(tenantRoot, appEntry.name);
-      const mergedAppConfig = resolveMergedAppConfigSync({
-        tenantRoot,
-        appRoot
-      });
-      const appConfig = normalizeAppConfig(
-        mergedAppConfig.config,
-        { expectedAppName: appMatch.appName }
+      const tenantRoot = path.join(scanBase.base, entry.name);
+      const tenantConfigPath = path.join(tenantRoot, `config.json`);
+      const tenantConfig = normalizeTenantConfig(
+        safeReadJsonFileSync(tenantConfigPath) ?? {},
+        { expectedTenantDomain: tenantMatch.tenantDomain }
       );
-      const processIdentity = buildIsolatedRuntimeProcessIdentity({
-        tenantId: tenantConfig.tenantId,
-        appId: appConfig.appId,
-        domain: tenantConfig.tenantDomain,
-        appName: appConfig.appName
-      });
+      if (seenProjectIds.has(tenantConfig.projectId)) continue;
+      seenProjectIds.add(tenantConfig.projectId);
 
-      apps.push(Object.freeze({
+      const apps = [];
+      for (const appEntry of safeReadDirentsSync(tenantRoot)) {
+        if (!appEntry?.isDirectory?.()) continue;
+        const appMatch = parseAppDirName(appEntry.name);
+        if (!appMatch) continue;
+
+        const appRoot = path.join(tenantRoot, appEntry.name);
+        const mergedAppConfig = resolveMergedAppConfigSync({
+          tenantRoot,
+          appRoot
+        });
+        const appConfig = normalizeAppConfig(
+          mergedAppConfig.config,
+          { expectedAppName: appMatch.appName }
+        );
+        const processIdentity = buildIsolatedRuntimeProcessIdentity({
+          tenantId: tenantConfig.tenantId,
+          appId: appConfig.appId,
+          domain: tenantConfig.tenantDomain,
+          appName: appConfig.appName
+        });
+
+        apps.push(Object.freeze({
+          projectId: tenantConfig.projectId,
+          projectDomain: tenantConfig.projectDomain,
+          projectAliases: tenantConfig.alias,
+          projectRoot: tenantRoot,
+          projectConfigPath: tenantConfigPath,
+          legacyTenantLayout: scanBase.legacy || entry.name.startsWith(legacyTenantDirPrefix),
+          tenantId: tenantConfig.tenantId,
+          tenantDomain: tenantConfig.tenantDomain,
+          tenantAliases: tenantConfig.alias,
+          tenantRoot,
+          tenantConfigPath,
+          appId: appConfig.appId,
+          appName: appConfig.appName,
+          alias: appConfig.alias,
+          appRoot,
+          appConfigPath: mergedAppConfig.appConfigDir,
+          processUser: processIdentity.processUser,
+          processLabel: processIdentity.label,
+          hostname: processIdentity.hostname
+        }));
+      }
+
+      tenantRecords.push(Object.freeze({
+        projectId: tenantConfig.projectId,
+        projectDomain: tenantConfig.projectDomain,
+        projectRoot: tenantRoot,
+        projectConfigPath: tenantConfigPath,
+        legacyTenantLayout: scanBase.legacy || entry.name.startsWith(legacyTenantDirPrefix),
         tenantId: tenantConfig.tenantId,
         tenantDomain: tenantConfig.tenantDomain,
-        tenantAliases: tenantConfig.alias,
+        alias: tenantConfig.alias,
         tenantRoot,
         tenantConfigPath,
-        appId: appConfig.appId,
-        appName: appConfig.appName,
-        alias: appConfig.alias,
-        appRoot,
-        appConfigPath: mergedAppConfig.appConfigDir,
-        processUser: processIdentity.processUser,
-        processLabel: processIdentity.label,
-        hostname: processIdentity.hostname
+        apps: Object.freeze(apps)
       }));
     }
-
-    tenantRecords.push(Object.freeze({
-      tenantId: tenantConfig.tenantId,
-      tenantDomain: tenantConfig.tenantDomain,
-      alias: tenantConfig.alias,
-      tenantRoot,
-      tenantConfigPath,
-      apps: Object.freeze(apps)
-    }));
   }
 
   return Object.freeze(tenantRecords);
@@ -505,12 +555,14 @@ function scanOpaqueTenantRecordsSync({ tenantsBase }) {
 
 function findOpaqueAppRecordByProcessUserSync({
   tenantsBase,
+  projectsBase = null,
+  legacyTenantsBase = null,
   processUser
 }) {
   const normalizedProcessUser = String(processUser ?? ``).trim();
   if (!normalizedProcessUser) return null;
 
-  for (const tenantRecord of scanOpaqueTenantRecordsSync({ tenantsBase })) {
+  for (const tenantRecord of scanOpaqueTenantRecordsSync({ tenantsBase, projectsBase, legacyTenantsBase })) {
     const matchedApp = tenantRecord.apps.find((entry) => entry.processUser === normalizedProcessUser);
     if (matchedApp) return matchedApp;
   }
@@ -520,35 +572,43 @@ function findOpaqueAppRecordByProcessUserSync({
 
 function findOpaqueTenantRecordByDomainSync({
   tenantsBase,
+  projectsBase = null,
+  legacyTenantsBase = null,
   tenantDomain
 }) {
   const normalizedTenantDomain = normalizeTenantDomain(tenantDomain);
   if (!normalizedTenantDomain) return null;
 
-  return scanOpaqueTenantRecordsSync({ tenantsBase })
-    .find((record) => record.tenantDomain === normalizedTenantDomain)
+  return scanOpaqueTenantRecordsSync({ tenantsBase, projectsBase, legacyTenantsBase })
+    .find((record) => record.projectDomain === normalizedTenantDomain || record.tenantDomain === normalizedTenantDomain)
     ?? null;
 }
 
 function findOpaqueTenantRecordByIdSync({
   tenantsBase,
+  projectsBase = null,
+  legacyTenantsBase = null,
   tenantId
 }) {
   const normalizedTenantId = normalizeOpaqueId(tenantId);
   if (!isTenantOpaqueId(normalizedTenantId)) return null;
 
-  return scanOpaqueTenantRecordsSync({ tenantsBase })
-    .find((record) => record.tenantId === normalizedTenantId)
+  return scanOpaqueTenantRecordsSync({ tenantsBase, projectsBase, legacyTenantsBase })
+    .find((record) => record.projectId === normalizedTenantId || record.tenantId === normalizedTenantId)
     ?? null;
 }
 
 function findOpaqueAppRecordByDomainAndAppNameSync({
   tenantsBase,
+  projectsBase = null,
+  legacyTenantsBase = null,
   tenantDomain,
   appName
 }) {
   const tenantRecord = findOpaqueTenantRecordByDomainSync({
     tenantsBase,
+    projectsBase,
+    legacyTenantsBase,
     tenantDomain
   });
   if (!tenantRecord) return null;
@@ -559,11 +619,15 @@ function findOpaqueAppRecordByDomainAndAppNameSync({
 
 function findOpaqueAppRecordByTenantIdAndAppNameSync({
   tenantsBase,
+  projectsBase = null,
+  legacyTenantsBase = null,
   tenantId,
   appName
 }) {
   const tenantRecord = findOpaqueTenantRecordByIdSync({
     tenantsBase,
+    projectsBase,
+    legacyTenantsBase,
     tenantId
   });
   if (!tenantRecord) return null;
@@ -574,11 +638,15 @@ function findOpaqueAppRecordByTenantIdAndAppNameSync({
 
 function findOpaqueAppRecordByTenantIdAndAppIdSync({
   tenantsBase,
+  projectsBase = null,
+  legacyTenantsBase = null,
   tenantId,
   appId
 }) {
   const tenantRecord = findOpaqueTenantRecordByIdSync({
     tenantsBase,
+    projectsBase,
+    legacyTenantsBase,
     tenantId
   });
   if (!tenantRecord) return null;
@@ -591,12 +659,14 @@ function findOpaqueAppRecordByTenantIdAndAppIdSync({
 
 function findOpaqueAppRecordByIdSync({
   tenantsBase,
+  projectsBase = null,
+  legacyTenantsBase = null,
   appId
 }) {
   const normalizedAppId = normalizeOpaqueId(appId);
   if (!isAppOpaqueId(normalizedAppId)) return null;
 
-  for (const tenantRecord of scanOpaqueTenantRecordsSync({ tenantsBase })) {
+  for (const tenantRecord of scanOpaqueTenantRecordsSync({ tenantsBase, projectsBase, legacyTenantsBase })) {
     const matchedApp = tenantRecord.apps.find((record) => record.appId === normalizedAppId);
     if (matchedApp) return matchedApp;
   }
@@ -606,6 +676,8 @@ function findOpaqueAppRecordByIdSync({
 
 function resolveOpaqueScopeRecordByPathSync({
   tenantsBase,
+  projectsBase = null,
+  legacyTenantsBase = null,
   targetPath
 }) {
   const normalizedTargetPath = typeof targetPath === `string` && targetPath.length
@@ -613,7 +685,7 @@ function resolveOpaqueScopeRecordByPathSync({
     : null;
   if (!normalizedTargetPath) return null;
 
-  for (const tenantRecord of scanOpaqueTenantRecordsSync({ tenantsBase })) {
+  for (const tenantRecord of scanOpaqueTenantRecordsSync({ tenantsBase, projectsBase, legacyTenantsBase })) {
     for (const appRecord of tenantRecord.apps) {
       if (
         normalizedTargetPath === appRecord.appRoot ||
@@ -631,7 +703,7 @@ function resolveOpaqueScopeRecordByPathSync({
       normalizedTargetPath.startsWith(`${tenantRecord.tenantRoot}${path.sep}`)
     ) {
       return Object.freeze({
-        kind: `tenant`,
+        kind: tenantRecord.legacyTenantLayout ? `tenant` : `project`,
         ...tenantRecord
       });
     }
@@ -747,6 +819,7 @@ module.exports = Object.freeze({
   OPAQUE_ID_LENGTH,
   TENANT_OPAQUE_ID_LENGTH,
   APP_OPAQUE_ID_LENGTH,
+  projectDirPrefix,
   tenantDirPrefix,
   appDirPrefix,
   opaqueIdPattern,
@@ -755,6 +828,7 @@ module.exports = Object.freeze({
   tenantDirPattern,
   appDirPattern,
   normalizeTenantDomain,
+  normalizeProjectDomain,
   normalizeDomainAliasList,
   normalizeAppName,
   normalizeOpaqueId,
@@ -763,6 +837,7 @@ module.exports = Object.freeze({
   isTenantOpaqueId,
   isAppOpaqueId,
   buildTenantDirName,
+  buildProjectDirName,
   buildAppDirName,
   parseTenantDirName,
   parseAppDirName,

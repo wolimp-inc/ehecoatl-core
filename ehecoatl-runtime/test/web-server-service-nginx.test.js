@@ -20,7 +20,7 @@ test(`nginx web-server adapter renders tenant config from the tenant-local templ
     managedConfigDir,
     managedIncludeFile,
     managedConfigPrefix: `tenant_`,
-    defaultTenantKitBaseDir: path.join(__dirname, `..`, `extensions`, `tenant-kits`),
+    defaultProjectKitBaseDir: path.join(__dirname, `..`, `extensions`, `project-kits`),
     nginxTestCommand: [process.execPath, `-e`, `process.exit(0)`],
     nginxReloadCommand: [process.execPath, `-e`, `process.exit(0)`]
   };
@@ -89,7 +89,7 @@ test(`nginx web-server adapter renders tenant config from the tenant-local templ
 test(`nginx source renderer can expose generic tls without forcing https redirect`, async () => {
   const { renderTenantTemplate } = require(`@/builtin-extensions/adapters/outbound/web-server-service/nginx/source-renderer`);
   const templateContent = fs.readFileSync(
-    path.join(__dirname, `..`, `builtin-extensions`, `tenant-kits`, `empty`, `.ehecoatl`, `lib`, `nginx.e.conf`),
+    path.join(__dirname, `..`, `builtin-extensions`, `project-kits`, `empty`, `.ehecoatl`, `lib`, `nginx.e.conf`),
     `utf8`
   );
 
@@ -126,7 +126,7 @@ test(`nginx source renderer can expose generic tls without forcing https redirec
 test(`nginx source renderer injects direct app target header only for app alias domains`, () => {
   const { renderTenantTemplate } = require(`@/builtin-extensions/adapters/outbound/web-server-service/nginx/source-renderer`);
   const templateContent = fs.readFileSync(
-    path.join(__dirname, `..`, `builtin-extensions`, `tenant-kits`, `empty`, `.ehecoatl`, `lib`, `nginx.e.conf`),
+    path.join(__dirname, `..`, `builtin-extensions`, `project-kits`, `empty`, `.ehecoatl`, `lib`, `nginx.e.conf`),
     `utf8`
   );
 
@@ -158,7 +158,7 @@ test(`nginx source renderer injects direct app target header only for app alias 
 test(`nginx source renderer uses domain-specific zone names for app hosts too`, () => {
   const { renderTenantTemplate } = require(`@/builtin-extensions/adapters/outbound/web-server-service/nginx/source-renderer`);
   const templateContent = fs.readFileSync(
-    path.join(__dirname, `..`, `builtin-extensions`, `tenant-kits`, `empty`, `.ehecoatl`, `lib`, `nginx.e.conf`),
+    path.join(__dirname, `..`, `builtin-extensions`, `project-kits`, `empty`, `.ehecoatl`, `lib`, `nginx.e.conf`),
     `utf8`
   );
 
@@ -270,7 +270,7 @@ test(`nginx web-server adapter prefers letsencrypt live certs for the raw domain
     managedConfigDir,
     managedIncludeFile,
     managedConfigPrefix: `tenant_`,
-    defaultTenantKitBaseDir: path.join(__dirname, `..`, `extensions`, `tenant-kits`),
+    defaultProjectKitBaseDir: path.join(__dirname, `..`, `extensions`, `project-kits`),
     nginxTestCommand: [process.execPath, `-e`, `process.exit(0)`],
     nginxReloadCommand: [process.execPath, `-e`, `process.exit(0)`],
     getCertificatePath: async (domain) => {
@@ -319,7 +319,7 @@ test(`nginx web-server adapter falls back to generic tls when domain certs are a
     managedConfigDir,
     managedIncludeFile,
     managedConfigPrefix: `tenant_`,
-    defaultTenantKitBaseDir: path.join(__dirname, `..`, `extensions`, `tenant-kits`),
+    defaultProjectKitBaseDir: path.join(__dirname, `..`, `extensions`, `project-kits`),
     genericTlsCertPath: path.join(genericTlsDir, `generic.fullchain.pem`),
     genericTlsKeyPath: path.join(genericTlsDir, `generic.privkey.pem`),
     nginxTestCommand: [process.execPath, `-e`, `process.exit(0)`],
@@ -360,7 +360,7 @@ test(`nginx web-server adapter can flush through privileged host callback`, asyn
     managedConfigDir,
     managedIncludeFile,
     managedConfigPrefix: `tenant_`,
-    defaultTenantKitBaseDir: path.join(__dirname, `..`, `extensions`, `tenant-kits`),
+    defaultProjectKitBaseDir: path.join(__dirname, `..`, `extensions`, `project-kits`),
     nginxTestCommand: [process.execPath, `-e`, `process.exit(7)`],
     nginxReloadCommand: [process.execPath, `-e`, `process.exit(9)`],
     privilegedHostOperation: async (operation, payload) => {
@@ -419,14 +419,14 @@ test(`nginx web-server adapter can flush through privileged host callback`, asyn
     {
       accessLogPath: path.join(tenantRoot, `.ehecoatl`, `log`, `nginx.access.log`),
       errorLogPath: path.join(tenantRoot, `.ehecoatl`, `log`, `nginx.error.log`),
-      owner: `u_tenant_aaaaaaaaaaaa`,
+      owner: `u_project_aaaaaaaaaaaa`,
       group: `g_aaaaaaaaaaaa`,
       directoryMode: `2770`,
       fileMode: `0660`,
       truncateAccessLogLines: 200
     }
   );
-  assert.equal(calls.some((entry) => entry.operation === `nginx.writeManagedSource`), false);
+  assert.equal(calls.some((entry) => entry.operation === `nginx.writeManagedSource`), true);
 });
 
 test(`nginx web-server adapter skips reload when nginx is unavailable`, async () => {
@@ -438,7 +438,7 @@ test(`nginx web-server adapter skips reload when nginx is unavailable`, async ()
     managedConfigDir,
     managedIncludeFile,
     managedConfigPrefix: `tenant_`,
-    defaultTenantKitBaseDir: path.join(__dirname, `..`, `extensions`, `tenant-kits`),
+    defaultProjectKitBaseDir: path.join(__dirname, `..`, `extensions`, `project-kits`),
     nginxTestCommand: [process.execPath, `-e`, `process.exit(0)`],
     nginxReloadCommand: [process.execPath, `-e`, `process.exit(0)`],
     privilegedHostOperation: async (operation) => {

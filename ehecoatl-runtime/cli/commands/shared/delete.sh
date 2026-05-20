@@ -29,7 +29,7 @@ shutdown_supervised_process() {
 
 delete_tenant() {
   [ -n "$TARGET_ALIAS" ] || {
-    echo "Usage: ehecoatl core delete tenant @<domain>|@<tenant_id>"
+    echo "Usage: ehecoatl core delete project @<domain>|@<project_id>"
     exit 1
   }
 
@@ -39,12 +39,12 @@ delete_tenant() {
   elif [[ "$TARGET_ALIAS" =~ ^@([a-z0-9.-]+)$ ]]; then
     tenant_json="$(node "$TENANT_LAYOUT_CLI" find-tenant-json-by-domain "$TENANTS_BASE" "${BASH_REMATCH[1]}")"
   else
-    echo "delete tenant accepts @<domain> or @<tenant_id>"
+    echo "delete project accepts @<domain> or @<project_id>"
     exit 1
   fi
 
   [ -n "$tenant_json" ] && [ "$tenant_json" != "null" ] || {
-    echo "Tenant '$TARGET_ALIAS' not found."
+    echo "Project '$TARGET_ALIAS' not found."
     exit 1
   }
 
@@ -69,16 +69,18 @@ delete_tenant() {
   fi
 
   shutdown_supervised_process "e_transport_${tenant_id}" "cli_delete_tenant_transport"
+  shutdown_supervised_process "e_project_transport_${tenant_id}" "cli_delete_project_transport"
+  sudo userdel -f "u_project_${tenant_id}" >/dev/null 2>&1 || true
   sudo userdel -f "u_tenant_${tenant_id}" >/dev/null 2>&1 || true
   sudo groupdel "g_${tenant_id}" >/dev/null 2>&1 || true
   sudo rm -rf "$tenant_root"
 
-  echo "Tenant '$TARGET_ALIAS' deleted successfully."
+  echo "Project '$TARGET_ALIAS' deleted successfully."
 }
 
 delete_app() {
   [ -n "$TARGET_ALIAS" ] || {
-    echo "Usage: ehecoatl tenant delete app <app_name>"
+    echo "Usage: ehecoatl project delete app <app_name>"
     exit 1
   }
 
@@ -110,7 +112,7 @@ delete_app() {
 }
 
 case "$DELETE_SCOPE" in
-  tenant) delete_tenant ;;
+  project|tenant) delete_tenant ;;
   app) delete_app ;;
   *)
     echo "Unknown delete scope: ${DELETE_SCOPE:-"(missing)"}"

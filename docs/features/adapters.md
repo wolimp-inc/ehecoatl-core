@@ -20,9 +20,9 @@ Each adaptable module then loads its configured adapter lazily through its port 
 
 ### Director And Routing
 
-- `tenantDirectoryResolver`
-- `tenantRegistryResolver`
-- `tenantRouteMatcherCompiler`
+- `projectDirectoryResolver`
+- `projectRegistryResolver`
+- `projectRouteMatcherCompiler`
 - `requestUriRoutingRuntime`
 - `webServerService`
 
@@ -41,7 +41,7 @@ Each adaptable module then loads its configured adapter lazily through its port 
 
 - process supervision and fork management
 - HTTP and WebSocket ingress
-- tenancy scan and active registry persistence
+- project scan and active registry persistence
 - route compilation and request routing
 - storage and shared cache backends
 - ingress web-server integration
@@ -51,3 +51,5 @@ Session and CSRF behavior are no longer described as standalone adapter-backed r
 ## Custom Adapters
 
 Custom adapters can be loaded from the runtime's custom adapter path without modifying the packaged runtime files. This keeps backend integration flexible while preserving the packaged runtime boundary.
+
+Legacy tenant-named adapter keys and module paths remain available as compatibility aliases, but new adapter configuration should use the project-named resolver and compiler surfaces.

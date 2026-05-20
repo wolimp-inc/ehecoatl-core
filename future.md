@@ -12,7 +12,7 @@ This file is an internal planning note. It is not part of the canonical product 
 - clearer permission model for root service, capabilities, and privileged-host boundaries
 - adapter-local dependency install reporting and failure diagnostics
 - supervised outbound HTTPS proxy channel for app web calls with firewall-controlled egress policy
-- self-hosted agile control panel for debug `Ehecoatl Panel` tenant-kit
+- self-hosted agile control panel for debug `Ehecoatl Panel` project-kit
 
 ## Medium Priority
 

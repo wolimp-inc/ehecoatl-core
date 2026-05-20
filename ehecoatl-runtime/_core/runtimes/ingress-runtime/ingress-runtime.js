@@ -41,7 +41,10 @@ class IngressRuntime extends AdaptableUseCase {
   constructor(kernelContext) {
     super(kernelContext.config._adapters.ingressRuntime);
     this.config = kernelContext.config.adapters.ingressRuntime;
-    this.tenantDirectoryResolverConfig = kernelContext.config.adapters.tenantDirectoryResolver ?? {};
+    this.projectDirectoryResolverConfig = kernelContext.config.adapters.projectDirectoryResolver
+      ?? kernelContext.config.adapters.tenantDirectoryResolver
+      ?? {};
+    this.tenantDirectoryResolverConfig = this.projectDirectoryResolverConfig;
     this.requestUriRoutingRuntimeConfig = kernelContext.config.adapters.requestUriRoutingRuntime ?? {};
     this.routeCacheTTL = kernelContext.config.adapters.requestUriRoutingRuntime?.routeMatchTTL ?? null;
     this.plugin = kernelContext.pluginOrchestrator;
@@ -92,7 +95,7 @@ class IngressRuntime extends AdaptableUseCase {
     const m = this.directorRuntimeResolver;
     return Object.freeze({
       askDirector: async (question, data) => await m.ask(question, data, ec),
-      resolveRoute: async (params = null) => ec.tenantRoute = await m.resolveRoute(ec, params ?? undefined),
+      resolveRoute: async (params = null) => ec.projectRoute = await m.resolveRoute(ec, params ?? undefined),
       getObject: async (key, defaultValue) => await m.getObject(key, defaultValue),
       setObject: async (key, value) => await m.setObject(key, value)
     });

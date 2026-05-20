@@ -9,12 +9,12 @@ const {
 
 module.exports = async function runMiddleware(middlewareContext, next) {
   const forward = createFlowController(next);
-  const { tenantRoute } = middlewareContext;
-  if (!tenantRoute.isStaticAsset()) {
+  const { projectRoute } = middlewareContext;
+  if (!projectRoute.isStaticAsset()) {
     return forward.continue();
   }
 
-  const assetPath = tenantRoute.assetPath();
+  const assetPath = projectRoute.assetPath();
   const eRendererRuntime = middlewareContext?.services?.eRendererRuntime ?? null;
   if (eRendererRuntime?.isCompatibleTemplate?.(assetPath)) {
     const exists = await middlewareContext?.services?.storage?.fileExists?.(assetPath).catch(() => false);
@@ -31,14 +31,14 @@ module.exports = async function runMiddleware(middlewareContext, next) {
     }
 
     const i18nJSONSources = resolveI18nSourcePaths(
-      tenantRoute?.folders?.rootFolder ?? ``,
-      tenantRoute?.i18n ?? [],
+      projectRoute?.folders?.rootFolder ?? ``,
+      projectRoute?.i18n ?? [],
       { entryLabel: `Route i18n` }
     );
     const renderedStream = await eRendererRuntime.renderView(assetPath, i18nJSONSources, {
       request: middlewareContext?.requestData ?? null,
       session: middlewareContext?.sessionData ?? null,
-      route: tenantRoute ?? null,
+      route: projectRoute ?? null,
       meta: middlewareContext?.meta ?? null,
       view: middlewareContext?.viewData ?? {}
     });

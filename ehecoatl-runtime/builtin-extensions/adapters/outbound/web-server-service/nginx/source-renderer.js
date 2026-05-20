@@ -4,11 +4,11 @@ const path = require(`node:path`);
 
 function buildTenantSourceRenderModel(source) {
   const kind = normalizeKind(source?.kind);
-  const tenantId = String(source?.tenantId ?? ``).trim();
-  const tenantDomain = String(source?.tenantDomain ?? ``).trim().toLowerCase();
+  const tenantId = String(source?.projectId ?? source?.tenantId ?? ``).trim();
+  const tenantDomain = String(source?.projectDomain ?? source?.tenantDomain ?? ``).trim().toLowerCase();
   const domain = String(source?.domain ?? tenantDomain).trim().toLowerCase();
   if (!tenantId || !tenantDomain || !domain) {
-    throw new Error(`Nginx tenant source requires tenantId, tenantDomain and domain`);
+    throw new Error(`Nginx project source requires projectId/projectDomain and domain; legacy tenantId/tenantDomain are still accepted`);
   }
 
   const httpPort = Number(source?.internalProxy?.httpPort);
@@ -17,11 +17,11 @@ function buildTenantSourceRenderModel(source) {
     throw new Error(`Nginx tenant source requires internalProxy.httpPort and internalProxy.wsPort`);
   }
 
-  const tenantRoot = String(source?.tenantRoot ?? ``).trim();
+  const tenantRoot = String(source?.projectRoot ?? source?.tenantRoot ?? ``).trim();
   const serviceRoot = tenantRoot ? path.join(tenantRoot, `.ehecoatl`) : null;
   const logsRoot = serviceRoot ? path.join(serviceRoot, `log`) : null;
   const effectiveTls = normalizeEffectiveTls(source?.effectiveTls);
-  const exactHostOnly = kind !== `tenant-primary` && kind !== `tenant-alias`;
+  const exactHostOnly = ![`project-primary`, `project-alias`, `tenant-primary`, `tenant-alias`].includes(kind);
   const serverNames = exactHostOnly
     ? domain
     : [domain, `*.${domain}`].join(` `);
@@ -130,11 +130,11 @@ module.exports = {
 Object.freeze(module.exports);
 
 function normalizeKind(kind) {
-  const normalized = String(kind ?? `tenant-primary`).trim().toLowerCase();
-  if ([`tenant-primary`, `tenant-alias`, `app-alias`, `app-default-root`, `app-default-domain`, `app-domain`].includes(normalized)) {
+  const normalized = String(kind ?? `project-primary`).trim().toLowerCase();
+  if ([`project-primary`, `project-alias`, `tenant-primary`, `tenant-alias`, `app-alias`, `app-default-root`, `app-default-domain`, `app-domain`].includes(normalized)) {
     return normalized;
   }
-  return `tenant-primary`;
+  return `project-primary`;
 }
 
 function normalizeEffectiveTls(effectiveTls) {

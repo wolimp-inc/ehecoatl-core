@@ -132,20 +132,20 @@ module.exports.handle = async function (executionContext) {
     return true;
   }
 
-  if (!executionContext.tenantRoute) {
+  if (!executionContext.projectRoute) {
     executionContext.responseData.status = 404;
     executionContext.responseData.body = `Not Found`;
     await writeResponse(executionContext);
     return true;
   }
 
-  if (executionContext.tenantRoute.isRedirect()) {
-    executionContext.responseData.status = executionContext.tenantRoute.target?.redirect?.status ?? 302;
+  if (executionContext.projectRoute.isRedirect()) {
+    executionContext.responseData.status = executionContext.projectRoute.target?.redirect?.status ?? 302;
     executionContext.responseData.headers = {
       ...(executionContext.responseData.headers ?? {}),
       Location: normalizeRedirectLocationForRoute(
-        executionContext.tenantRoute.target?.redirect?.location,
-        executionContext.tenantRoute
+        executionContext.projectRoute.target?.redirect?.location,
+        executionContext.projectRoute
       )
     };
     await writeResponse(executionContext);
@@ -350,13 +350,13 @@ function normalizeForwardedIp(headers = {}) {
   throw error;
 }
 
-function normalizeRedirectLocationForRoute(location, tenantRoute) {
+function normalizeRedirectLocationForRoute(location, projectRoute) {
   const normalizedLocation = String(location ?? ``).trim();
-  if (!shouldPrefixRedirectLocation(normalizedLocation, tenantRoute)) {
+  if (!shouldPrefixRedirectLocation(normalizedLocation, projectRoute)) {
     return location;
   }
 
-  const appPrefix = `/${String(tenantRoute?.origin?.appName ?? ``).trim().toLowerCase()}`;
+  const appPrefix = `/${String(projectRoute?.origin?.appName ?? ``).trim().toLowerCase()}`;
   if (normalizedLocation === appPrefix || normalizedLocation.startsWith(`${appPrefix}/`)) {
     return normalizedLocation;
   }
@@ -364,12 +364,12 @@ function normalizeRedirectLocationForRoute(location, tenantRoute) {
   return `${appPrefix}${normalizedLocation}`;
 }
 
-function shouldPrefixRedirectLocation(location, tenantRoute) {
+function shouldPrefixRedirectLocation(location, projectRoute) {
   if (!location.startsWith(`/`)) return false;
   if (location.startsWith(`//`)) return false;
-  const domainRoutingMode = String(tenantRoute?.domainRoutingMode ?? tenantRoute?.meta?.domainRoutingMode ?? ``).trim().toLowerCase();
+  const domainRoutingMode = String(projectRoute?.domainRoutingMode ?? projectRoute?.meta?.domainRoutingMode ?? ``).trim().toLowerCase();
   if (domainRoutingMode !== `path`) return false;
-  const appName = String(tenantRoute?.origin?.appName ?? ``).trim();
+  const appName = String(projectRoute?.origin?.appName ?? ``).trim();
   return Boolean(appName);
 }
 
@@ -379,7 +379,7 @@ function normalizeOptionalInternalAppId(value) {
 }
 
 function validateRouteRequest(executionContext) {
-  const { requestData, tenantRoute } = executionContext;
+  const { requestData, projectRoute } = executionContext;
   const requestMethod = requestData?.method ?? `GET`;
 
   if (isMethodBlocked(requestMethod)) {
@@ -387,37 +387,37 @@ function validateRouteRequest(executionContext) {
       status: 405,
       body: STATUS_TEXT[405],
       headers: {
-        Allow: tenantRoute.allowHeader()
+        Allow: projectRoute.allowHeader()
       }
     };
   }
 
-  if (!tenantRoute.allowsHostMethod(requestMethod)) {
+  if (!projectRoute.allowsHostMethod(requestMethod)) {
     return {
       status: 405,
       body: STATUS_TEXT[405],
       headers: {
-        Allow: tenantRoute.hostAllowHeader()
+        Allow: projectRoute.hostAllowHeader()
       }
     };
   }
 
-  if (!tenantRoute.allowsMethod(requestMethod)) {
+  if (!projectRoute.allowsMethod(requestMethod)) {
     return {
       status: 405,
       body: STATUS_TEXT[405],
       headers: {
-        Allow: tenantRoute.allowHeader()
+        Allow: projectRoute.allowHeader()
       }
     };
   }
 
-  if (!shouldValidateContentType(requestData, tenantRoute)) {
+  if (!shouldValidateContentType(requestData, projectRoute)) {
     return null;
   }
 
   const requestContentType = requestData?.headers?.[`content-type`] ?? ``;
-  if (tenantRoute.allowsContentType(requestContentType)) {
+  if (projectRoute.allowsContentType(requestContentType)) {
     return null;
   }
 
@@ -428,7 +428,7 @@ function validateRouteRequest(executionContext) {
 }
 
 function buildPreflightResponse(executionContext) {
-  const allowHeader = executionContext.tenantRoute.allowHeader();
+  const allowHeader = executionContext.projectRoute.allowHeader();
   const baseHeaders = {
     Allow: allowHeader
   };
@@ -458,8 +458,8 @@ function buildPreflightResponse(executionContext) {
   if (
     requestedMethod
     && (
-      !executionContext.tenantRoute.allowsHostMethod(requestedMethod)
-      || !executionContext.tenantRoute.allowsMethod(requestedMethod)
+      !executionContext.projectRoute.allowsHostMethod(requestedMethod)
+      || !executionContext.projectRoute.allowsMethod(requestedMethod)
     )
   ) {
     return {
@@ -482,8 +482,8 @@ function buildPreflightResponse(executionContext) {
   };
 }
 
-function shouldValidateContentType(requestData, tenantRoute) {
-  if (!Array.isArray(tenantRoute.contentTypes)) return false;
+function shouldValidateContentType(requestData, projectRoute) {
+  if (!Array.isArray(projectRoute.contentTypes)) return false;
 
   const headers = requestData?.headers ?? {};
   if (String(headers[`content-type`] ?? ``).trim()) return true;

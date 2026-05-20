@@ -9,7 +9,8 @@ case "${1:-}" in
     cat <<'EOF'
 Usage: ehecoatl core rescan tenants [options]
 
-Requests a director tenancy rescan and prints the result.
+Legacy alias for `core rescan projects`. Requests a director project registry
+rescan and prints the result.
 
 Options:
   --json        Print the RPC response as JSON.

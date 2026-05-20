@@ -52,7 +52,7 @@ TenantDirectoryResolverPort.scanTenantsAdapter = async function ({
   storage,
   routeMatcherCompiler
 }) {
-  const tenantPath = config.tenantsPath;
+  const scanRoots = resolveProjectScanRoots(config);
   const expectedEhecoatlVersion = resolveExpectedEhecoatlVersion(config);
   const nextDomainAliases = new Map();
   const nextAppAliases = new Map();
@@ -64,53 +64,59 @@ TenantDirectoryResolverPort.scanTenantsAdapter = async function ({
   const pendingTenants = [];
   const scopeErrors = new Map();
 
-  const rootEntries = await storage.listEntries(tenantPath) ?? [];
-  for (const rootEntry of rootEntries) {
-    const entryPath = path.join(tenantPath, rootEntry.name);
-    if (!rootEntry.isDirectory?.()) continue;
+  for (const scanRoot of scanRoots) {
+    const rootEntries = await safeListEntries(storage, scanRoot.path);
+    for (const rootEntry of rootEntries) {
+      const entryPath = path.join(scanRoot.path, rootEntry.name);
+      if (!rootEntry.isDirectory?.()) continue;
 
-    const tenantFolder = parseTenantDirName(rootEntry.name);
-    if (!tenantFolder) {
-      const reason = buildConfigValidationError({
-        host: rootEntry.name,
-        rootFolder: entryPath,
-        appConfigPath: path.join(entryPath, configRelativePath),
-        scope: `tenant`,
-        error: new Error(`Tenant folder "${rootEntry.name}" must match tenant_<domain>`)
-      });
-      invalidHosts.push(reason);
-      rememberScopeError(scopeErrors, `tenant:${entryPath}`, reason);
-      continue;
-    }
+      const tenantFolder = parseTenantDirName(rootEntry.name);
+      if (!tenantFolder) {
+        const reason = buildConfigValidationError({
+          host: rootEntry.name,
+          rootFolder: entryPath,
+          appConfigPath: path.join(entryPath, configRelativePath),
+          scope: scanRoot.legacy ? `tenant` : `project`,
+          error: new Error(`Project folder "${rootEntry.name}" must match project_<domain>; legacy tenant_<domain> remains accepted in the legacy tenants root`)
+        });
+        invalidHosts.push(reason);
+        rememberScopeError(scopeErrors, `tenant:${entryPath}`, reason);
+        continue;
+      }
 
-    const tenantConfigPath = path.join(entryPath, configRelativePath);
-    try {
-      const tenantConfigContent = await storage.readFile(tenantConfigPath, `utf-8`);
-      const tenantConfig = normalizeTenantConfig(JSON.parse(tenantConfigContent), {
-        defaultAppName: config.defaultAppName ?? `www`,
-        expectedTenantDomain: tenantFolder.tenantDomain,
-        expectedEhecoatlVersion
-      });
-      await clearConfigValidationError(storage, entryPath);
-      pendingTenants.push({
-        tenantId: tenantConfig.tenantId,
-        tenantDomain: tenantConfig.tenantDomain,
-        tenantAliases: tenantConfig.alias ?? [],
-        tenantRoot: entryPath,
-        tenantConfigPath,
-        tenantConfig,
-        apps: []
-      });
-    } catch (error) {
-      const reason = buildConfigValidationError({
-        host: rootEntry.name,
-        rootFolder: entryPath,
-        appConfigPath: tenantConfigPath,
-        scope: `tenant`,
-        error
-      });
-      invalidHosts.push(reason);
-      await writeConfigValidationError(storage, entryPath, reason);
+      const tenantConfigPath = path.join(entryPath, configRelativePath);
+      try {
+        const tenantConfigContent = await storage.readFile(tenantConfigPath, `utf-8`);
+        const tenantConfig = normalizeTenantConfig(JSON.parse(tenantConfigContent), {
+          defaultAppName: config.defaultAppName ?? `www`,
+          expectedTenantDomain: tenantFolder.tenantDomain,
+          expectedEhecoatlVersion
+        });
+        await clearConfigValidationError(storage, entryPath);
+        pendingTenants.push({
+          projectId: tenantConfig.projectId,
+          projectDomain: tenantConfig.projectDomain,
+          projectRoot: entryPath,
+          tenantId: tenantConfig.tenantId,
+          tenantDomain: tenantConfig.tenantDomain,
+          tenantAliases: tenantConfig.alias ?? [],
+          tenantRoot: entryPath,
+          tenantConfigPath,
+          tenantConfig,
+          legacyTenantLayout: scanRoot.legacy || tenantFolder.legacyTenantLayout,
+          apps: []
+        });
+      } catch (error) {
+        const reason = buildConfigValidationError({
+          host: rootEntry.name,
+          rootFolder: entryPath,
+          appConfigPath: tenantConfigPath,
+          scope: scanRoot.legacy ? `tenant` : `project`,
+          error
+        });
+        invalidHosts.push(reason);
+        await writeConfigValidationError(storage, entryPath, reason);
+      }
     }
   }
 
@@ -232,11 +238,14 @@ TenantDirectoryResolverPort.scanTenantsAdapter = async function ({
     const activeAppNames = [];
     for (const appRecord of activeApps) {
       const host = `${appRecord.appName}.${tenantRecord.tenantDomain}`.toLowerCase();
-      const routeDataObject = {
-        host,
-        tenantId: appRecord.tenantId,
-        tenantDomain: tenantRecord.tenantDomain,
-        appId: appRecord.appId,
+        const routeDataObject = {
+          host,
+          projectId: appRecord.tenantId,
+          projectDomain: tenantRecord.tenantDomain,
+          projectRoot: tenantRecord.tenantRoot,
+          tenantId: appRecord.tenantId,
+          tenantDomain: tenantRecord.tenantDomain,
+          appId: appRecord.appId,
         domain: tenantRecord.tenantDomain,
         appName: appRecord.appName,
         alias: Object.freeze([...(appRecord.appAliases ?? [])]),
@@ -284,6 +293,9 @@ TenantDirectoryResolverPort.scanTenantsAdapter = async function ({
     }
 
     nextDomains.set(tenantRecord.tenantDomain, Object.freeze({
+      projectId: tenantRecord.tenantId,
+      projectDomain: tenantRecord.tenantDomain,
+      projectRoot: tenantRecord.tenantRoot,
       tenantId: tenantRecord.tenantId,
       domain: tenantRecord.tenantDomain,
       ehecoatlVersion: tenantRecord.tenantConfig.ehecoatlVersion ?? null,
@@ -313,13 +325,27 @@ TenantDirectoryResolverPort.scanTenantsAdapter = async function ({
     registry,
     previousRegistry,
     initialScan,
+    activeProjects: [...registry.domains.values()].map((tenantRecord) => ({
+      projectId: tenantRecord.projectId ?? tenantRecord.tenantId,
+      projectDomain: tenantRecord.projectDomain ?? tenantRecord.domain,
+      projectRoot: tenantRecord.projectRoot ?? tenantRecord.rootFolder,
+      tenantId: tenantRecord.tenantId,
+      tenantDomain: tenantRecord.domain,
+      tenantRoot: tenantRecord.rootFolder
+    })),
     activeTenants: [...registry.domains.values()].map((tenantRecord) => ({
+      projectId: tenantRecord.projectId ?? tenantRecord.tenantId,
+      projectDomain: tenantRecord.projectDomain ?? tenantRecord.domain,
+      projectRoot: tenantRecord.projectRoot ?? tenantRecord.rootFolder,
       tenantId: tenantRecord.tenantId,
       tenantDomain: tenantRecord.domain,
       tenantRoot: tenantRecord.rootFolder
     })),
     activeHosts: [...registry.hosts.values()].map((routeDataObject) => ({
       host: routeDataObject.host,
+      projectId: routeDataObject.projectId ?? routeDataObject.tenantId,
+      projectDomain: routeDataObject.projectDomain ?? routeDataObject.tenantDomain,
+      projectRoot: routeDataObject.projectRoot ?? routeDataObject.tenantRootFolder ?? null,
       tenantId: routeDataObject.tenantId,
       tenantDomain: routeDataObject.tenantDomain,
       appId: routeDataObject.appId,
@@ -347,6 +373,30 @@ function resolveExpectedEhecoatlVersion(config = {}) {
   const packageVersion = String(runtimePackage?.version ?? ``).trim();
   if (!packageVersion || packageVersion === `{{version}}`) return null;
   return packageVersion;
+}
+
+function resolveProjectScanRoots(config = {}) {
+  const roots = [];
+  const seen = new Set();
+  const addRoot = (candidate, legacy = false) => {
+    const normalized = String(candidate ?? ``).trim();
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    roots.push(Object.freeze({ path: normalized, legacy }));
+  };
+
+  addRoot(config.projectsPath ?? config.projectPath ?? `/var/opt/ehecoatl/projects`, false);
+  addRoot(config.legacyTenantsPath ?? config.tenantsPath, true);
+  return roots;
+}
+
+async function safeListEntries(storage, targetPath) {
+  try {
+    return await storage.listEntries(targetPath) ?? [];
+  } catch (error) {
+    if (error?.code === `ENOENT`) return [];
+    throw error;
+  }
 }
 
 function findDuplicates(entries, propertyName) {
@@ -668,15 +718,15 @@ function resolveTenantSourceFolders(rootFolder, {
     httpActionsRootFolder,
     wsActionsRootFolder: path.join(rootFolder, appWsActionsRelativePath),
     assetsRootFolder: path.join(rootFolder, tenantAssetsFolderName),
-    httpSharedActionsRootFolder: renderLayerPath(`tenantScope`, `SHARED`, `httpActions`, {
+    httpSharedActionsRootFolder: renderLayerPath(`projectScope`, `SHARED`, `httpActions`, {
       tenant_id: tenantId,
       tenant_domain: tenantDomain
     }) ?? (tenantRoot ? path.join(tenantRoot, `shared`, `app`, `http`, `actions`) : null),
-    wsSharedActionsRootFolder: renderLayerPath(`tenantScope`, `SHARED`, `wsActions`, {
+    wsSharedActionsRootFolder: renderLayerPath(`projectScope`, `SHARED`, `wsActions`, {
       tenant_id: tenantId,
       tenant_domain: tenantDomain
     }) ?? (tenantRoot ? path.join(tenantRoot, `shared`, `app`, `ws`, `actions`) : null),
-    assetsSharedRootFolder: renderLayerPath(`tenantScope`, `SHARED`, `assets`, {
+    assetsSharedRootFolder: renderLayerPath(`projectScope`, `SHARED`, `assets`, {
       tenant_id: tenantId,
       tenant_domain: tenantDomain
     }) ?? (tenantRoot ? path.join(tenantRoot, `shared`, `assets`) : null),

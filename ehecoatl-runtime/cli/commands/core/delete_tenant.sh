@@ -5,13 +5,13 @@ SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 case "${1:-}" in
   -h|--help)
     cat <<'EOF'
-Usage: ehecoatl core delete tenant @<domain>|@<tenant_id>
+Usage: ehecoatl core delete tenant @<domain>|@<project_id>
 
-Deletes one managed tenant.
+Legacy alias for `core delete project`. Deletes one managed project.
 
 Arguments:
-  @<domain>       Delete by tenant domain.
-  @<tenant_id>    Delete by tenant id.
+  @<domain>       Delete by project domain.
+  @<project_id>   Delete by project id.
 EOF
     exit 0
     ;;

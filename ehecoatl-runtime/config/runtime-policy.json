@@ -4,10 +4,12 @@
     "sharedGroup": "root"
   },
   "paths": {
+    "projectsBase": "/var/opt/ehecoatl/projects",
     "tenantsBase": "/var/opt/ehecoatl/tenants",
     "varBase": "/var/opt/ehecoatl",
     "pluginsBase": "/srv/opt/ehecoatl/plugins",
     "adaptersBase": "/srv/opt/ehecoatl/adapters",
+    "projectKitsBase": "/srv/opt/ehecoatl/project-kits",
     "tenantKitsBase": "/srv/opt/ehecoatl/tenant-kits",
     "srvBase": "/srv/opt/ehecoatl",
     "configBase": "/etc/opt/ehecoatl/config",
@@ -36,6 +38,17 @@
       "groupMode": "shared-group",
       "shareProxyByUser": false
     }
+  },
+  "projectLayout": {
+    "domainBaseOwner": "ehecoatl",
+    "domainBaseGroup": "root",
+    "domainBaseMode": "2775",
+    "appOwner": "app-user",
+    "appGroup": "root",
+    "appMode": "2755",
+    "appWritableDirMode": "2775",
+    "appFileMode": "644",
+    "appConfigMode": "640"
   },
   "tenantLayout": {
     "domainBaseOwner": "ehecoatl",

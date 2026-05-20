@@ -7,7 +7,7 @@
 require(`module-alias/register`);
 const fs = require(`fs`);
 const path = require(`path`);
-const TenantRoute = require(`@/_core/runtimes/ingress-runtime/execution/tenant-route`);
+const ProjectRoute = require(`@/_core/runtimes/ingress-runtime/execution/project-route`);
 const { setHeartbeatCallback } = require(`@/_core/orchestrators/watchdog-orchestrator/heartbeat-reporter`);
 const { ensureBootstrapCapabilitiesSanitized } = require(`@/utils/process/bootstrap-capabilities`);
 const { attachManagedCgroupOrExit } = require(`@/utils/process/attach-managed-cgroup`);
@@ -144,12 +144,12 @@ async function boot() {
   });
 
   console.log(`Registering isolated runtime action request handler`);
-  rpcEndpoint.addListener(tenantActionQuestion, async ({ tenantRoute, requestData, sessionData }, resolve) => {
+  rpcEndpoint.addListener(tenantActionQuestion, async ({ projectRoute, requestData, sessionData }, resolve) => {
     if (isolatedRuntimeState.draining) {
       resolve(createActionFailureResponse(503, `Isolated runtime is draining`, {
-        run: tenantRoute?.run ?? null,
-        resource: tenantRoute?.run?.resource ?? null,
-        action: tenantRoute?.run?.action ?? null,
+        run: projectRoute?.target?.run ?? null,
+        resource: projectRoute?.target?.run?.resource ?? null,
+        action: projectRoute?.target?.run?.action ?? null,
         reason: `draining`
       }));
       return false;
@@ -159,7 +159,7 @@ async function boot() {
     const actionStartedAt = Date.now();
     try {
       const response = await handleIsolatedActionRequest({
-        tenantRoute,
+        projectRoute,
         requestData,
         sessionData,
         appRoot,
@@ -183,7 +183,7 @@ async function boot() {
     return false;
   });
 
-  rpcEndpoint.addListener(tenantWsActionQuestion, async ({ tenantRoute, sessionData, wsMessageData }, resolve) => {
+  rpcEndpoint.addListener(tenantWsActionQuestion, async ({ projectRoute, sessionData, wsMessageData }, resolve) => {
     if (isolatedRuntimeState.draining) {
       resolve({
         success: false,
@@ -195,7 +195,7 @@ async function boot() {
     isolatedRuntimeState.activeActionRequests += 1;
     try {
       resolve(await handleIsolatedWsActionRequest({
-        tenantRoute,
+        projectRoute,
         sessionData,
         wsMessageData,
         appRoot,
@@ -393,7 +393,7 @@ function createActionFailureResponse(status, body, details = null) {
 }
 
 async function handleIsolatedActionRequest({
-  tenantRoute,
+  projectRoute,
   requestData,
   sessionData,
   appRoot,
@@ -402,17 +402,17 @@ async function handleIsolatedActionRequest({
   appTopology,
   services
 }) {
-  const runTarget = formatRunTarget(tenantRoute?.target?.run ?? null);
-  const resource = tenantRoute?.target?.run?.resource ?? null;
-  const actionName = tenantRoute?.target?.run?.action ?? null;
+  const runTarget = formatRunTarget(projectRoute?.target?.run ?? null);
+  const resource = projectRoute?.target?.run?.resource ?? null;
+  const actionName = projectRoute?.target?.run?.action ?? null;
   if (!resource || !actionName) return { status: 404, body: `Action not found` };
 
   try {
     const actionModule = weakRequire(resolveActionPath(
       resource,
       appRoot,
-      tenantRoute?.folders?.httpActionsRootFolder
-        ?? tenantRoute?.folders?.actionsRootFolder,
+      projectRoute?.folders?.httpActionsRootFolder
+        ?? projectRoute?.folders?.actionsRootFolder,
       appTopology,
       services
     ));
@@ -427,7 +427,7 @@ async function handleIsolatedActionRequest({
     }
 
     const context = Object.freeze({
-      tenantRoute,
+      projectRoute,
       requestData,
       sessionData,
       appRoot,
@@ -458,7 +458,7 @@ async function handleIsolatedActionRequest({
 }
 
 async function handleIsolatedWsActionRequest({
-  tenantRoute,
+  projectRoute,
   sessionData,
   wsMessageData,
   appRoot,
@@ -467,9 +467,9 @@ async function handleIsolatedWsActionRequest({
   appTopology,
   services
 }) {
-  const runtimeTenantRoute = tenantRoute instanceof TenantRoute
-    ? tenantRoute
-    : new TenantRoute(tenantRoute ?? {});
+  const runtimeProjectRoute = projectRoute instanceof ProjectRoute
+    ? projectRoute
+    : new ProjectRoute(projectRoute ?? {});
   const actionTarget = String(wsMessageData?.actionTarget ?? ``).trim();
   const parsedAction = parseWsActionTarget(actionTarget);
   if (!parsedAction) {
@@ -484,7 +484,7 @@ async function handleIsolatedWsActionRequest({
     const actionModule = weakRequire(resolveWsActionPath(
       parsedAction.resource,
       appRoot,
-      runtimeTenantRoute?.folders?.wsActionsRootFolder ?? null,
+      runtimeProjectRoute?.folders?.wsActionsRootFolder ?? null,
       appTopology,
       services
     ));
@@ -499,7 +499,7 @@ async function handleIsolatedWsActionRequest({
     }
 
     const context = Object.freeze({
-      tenantRoute: runtimeTenantRoute,
+      projectRoute: runtimeProjectRoute,
       sessionData,
       wsMessageData,
       appRoot,

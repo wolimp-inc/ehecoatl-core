@@ -9,7 +9,7 @@ cli_init "$0"
 DEPLOY_SCOPE="${1:-}"
 [ "$#" -gt 0 ] && shift || true
 
-TENANT_KIT_NAME=""
+PROJECT_KIT_NAME=""
 APP_KIT_NAME=""
 TARGET_ALIAS=""
 
@@ -17,17 +17,18 @@ VAR_BASE_DIR="$TENANTS_BASE"
 TENANT_LAYOUT_CLI="$SCRIPT_DIR/../../lib/tenant-layout-cli.js"
 CONTRACT_IDENTITY_CLI="$SCRIPT_DIR/../../lib/contract-identity-cli.js"
 CLI_SPEC_CLI="$SCRIPT_DIR/../../lib/cli-spec-cli.js"
-TENANT_KITS_BASE="$SCRIPT_DIR/../../../builtin-extensions/tenant-kits"
+PROJECT_KITS_BASE="$SCRIPT_DIR/../../../builtin-extensions/project-kits"
+LEGACY_TENANT_KITS_BASE="$SCRIPT_DIR/../../../builtin-extensions/tenant-kits"
 APP_KITS_BASE="$SCRIPT_DIR/../../../builtin-extensions/app-kits"
 KIT_GITHUB_ORG_URL="https://github.com/ehecoatl"
-DEFAULT_TENANT_KIT_NAME="empty"
+DEFAULT_PROJECT_KIT_NAME="empty"
 DEFAULT_APP_KIT_NAME="empty"
 usage() {
   cat <<'EOF_USAGE'
 Internal shared deploy helper:
-  deploy.sh tenant @<domain> -t <tenant_kit>
+  deploy.sh project @<domain> -p <project_kit>
   deploy.sh app <app_name>@<domain> -a <app_kit>
-  deploy.sh app <app_name>@<tenant_id> -a <app_kit>
+  deploy.sh app <app_name>@<project_id> -a <app_kit>
 
 Kit sources may be directories or .zip archives. Zip kits must contain the kit
 files directly at the archive root.
@@ -35,8 +36,11 @@ files directly at the archive root.
 Kit resolution checks built-in kits first, custom extension kit paths second,
 and then public GitHub fallback repos under https://github.com/ehecoatl.
 
-Tenant kits may include top-level app_<name>/ folders. These folders are
-auto-deployed as apps during tenant deploy, without using an app kit.
+Project kits may include top-level app_<name>/ folders. These folders are
+auto-deployed as apps during project deploy, without using an app kit.
+
+Legacy -t|--tenant-kit options, tenant-kits roots, and tenant-kit-* remote
+repositories are still accepted as compatibility fallbacks.
 EOF_USAGE
 }
 
@@ -133,7 +137,7 @@ contract_path_entry_keys() {
   local layer_key="$1"
 
   case "$layer_key" in
-    tenantScope)
+    projectScope|tenantScope)
       cat <<'EOF_KEYS'
 LOGS root
 LOGS error
@@ -275,23 +279,23 @@ apply_tenant_permissions() {
   local config_json routes_json config_dir routes_dir shared_dir
   local tenant_subpath
 
-  tenant_runtime_root_json="$(resolve_contract_path_entry tenantScope RUNTIME root "$tenant_id" "" "$tenant_domain" || true)"
+  tenant_runtime_root_json="$(resolve_contract_path_entry projectScope RUNTIME root "$tenant_id" "" "$tenant_domain" || true)"
   tenant_runtime_root_path="$(json_field "$tenant_runtime_root_json" path 2>/dev/null || true)"
-  tenant_runtime_lib_json="$(resolve_contract_path_entry tenantScope RUNTIME lib "$tenant_id" "" "$tenant_domain" || true)"
+  tenant_runtime_lib_json="$(resolve_contract_path_entry projectScope RUNTIME lib "$tenant_id" "" "$tenant_domain" || true)"
   tenant_runtime_lib_path="$(json_field "$tenant_runtime_lib_json" path 2>/dev/null || true)"
-  tenant_runtime_ssl_json="$(resolve_contract_path_entry tenantScope RUNTIME ssl "$tenant_id" "" "$tenant_domain" || true)"
+  tenant_runtime_ssl_json="$(resolve_contract_path_entry projectScope RUNTIME ssl "$tenant_id" "" "$tenant_domain" || true)"
   tenant_runtime_ssl_path="$(json_field "$tenant_runtime_ssl_json" path 2>/dev/null || true)"
-  tenant_runtime_backups_json="$(resolve_contract_path_entry tenantScope RUNTIME backups "$tenant_id" "" "$tenant_domain" || true)"
+  tenant_runtime_backups_json="$(resolve_contract_path_entry projectScope RUNTIME backups "$tenant_id" "" "$tenant_domain" || true)"
   tenant_runtime_backups_path="$(json_field "$tenant_runtime_backups_json" path 2>/dev/null || true)"
-  tenant_config_json="$(resolve_contract_path_entry tenantScope RUNTIME config "$tenant_id" "" "$tenant_domain" || true)"
+  tenant_config_json="$(resolve_contract_path_entry projectScope RUNTIME config "$tenant_id" "" "$tenant_domain" || true)"
   tenant_config_path="$(json_field "$tenant_config_json" path 2>/dev/null || true)"
-  asset_static_json="$(resolve_contract_path_entry tenantScope SHARED assetStatic "$tenant_id" "" "$tenant_domain" || true)"
+  asset_static_json="$(resolve_contract_path_entry projectScope SHARED assetStatic "$tenant_id" "" "$tenant_domain" || true)"
   shared_assets_static_dir="$(json_field "$asset_static_json" path 2>/dev/null || true)"
-  config_json="$(resolve_contract_path_entry tenantScope OVERRIDES config "$tenant_id" "" "$tenant_domain" || true)"
-  routes_json="$(resolve_contract_path_entry tenantScope OVERRIDES routes "$tenant_id" "" "$tenant_domain" || true)"
+  config_json="$(resolve_contract_path_entry projectScope OVERRIDES config "$tenant_id" "" "$tenant_domain" || true)"
+  routes_json="$(resolve_contract_path_entry projectScope OVERRIDES routes "$tenant_id" "" "$tenant_domain" || true)"
   config_dir="$(json_field "$config_json" path 2>/dev/null || true)"
   routes_dir="$(json_field "$routes_json" path 2>/dev/null || true)"
-  shared_dir="$(resolve_json_field "$(resolve_contract_path_entry tenantScope SHARED root "$tenant_id" "" "$tenant_domain")" path)"
+  shared_dir="$(resolve_json_field "$(resolve_contract_path_entry projectScope SHARED root "$tenant_id" "" "$tenant_domain")" path)"
 
   [ -d "$tenant_dir" ] || return 0
   sudo chown "$owner_user:$owner_group" "$tenant_dir"
@@ -409,20 +413,32 @@ materialize_remote_kit_source() {
   local remote_repo_prefix="$2"
   local requested_kit_name="$3"
   local description="$4"
+
+  if materialize_remote_kit_source_optional "$custom_kits_base" "$remote_repo_prefix" "$requested_kit_name" "$description"; then
+    return 0
+  fi
+
+  local normalized_kit_name
+  normalized_kit_name="$(normalize_kit_name_for_remote "$requested_kit_name")"
+  echo "$description '$requested_kit_name' was not found in built-in kits, custom kits, or remote fallback $KIT_GITHUB_ORG_URL/${remote_repo_prefix}-${normalized_kit_name}.git." >&2
+  exit 1
+}
+
+materialize_remote_kit_source_optional() {
+  local custom_kits_base="$1"
+  local remote_repo_prefix="$2"
+  local requested_kit_name="$3"
+  local description="$4"
   local normalized_kit_name remote_url target_dir
 
   normalized_kit_name="$(normalize_kit_name_for_remote "$requested_kit_name")"
   remote_url="${KIT_GITHUB_ORG_URL}/${remote_repo_prefix}-${normalized_kit_name}.git"
   target_dir="$custom_kits_base/$normalized_kit_name"
 
-  command -v git >/dev/null 2>&1 || {
-    echo "git is required to fetch missing $description kits from $KIT_GITHUB_ORG_URL." >&2
-    exit 1
-  }
+  command -v git >/dev/null 2>&1 || return 1
 
   if ! GIT_TERMINAL_PROMPT=0 git ls-remote --exit-code "$remote_url" >/dev/null 2>&1; then
-    echo "$description '$requested_kit_name' was not found in built-in kits, custom kits, or remote fallback $remote_url." >&2
-    exit 1
+    return 1
   fi
 
   sudo mkdir -p "$custom_kits_base"
@@ -433,8 +449,9 @@ materialize_remote_kit_source() {
   echo "$description '$requested_kit_name' not found locally. Cloning $remote_url into $target_dir." >&2
   if ! sudo env GIT_TERMINAL_PROMPT=0 git clone --depth 1 "$remote_url" "$target_dir"; then
     echo "Failed to clone $description fallback repository $remote_url into $target_dir." >&2
-    exit 1
+    return 1
   fi
+  return 0
 }
 
 resolve_kit_source() {
@@ -466,6 +483,53 @@ resolve_kit_source() {
   echo "  Built-in: $builtin_kits_base/$requested_kit_name" >&2
   echo "  Custom:   $custom_kits_base/$requested_kit_name" >&2
   echo "  Remote:   $KIT_GITHUB_ORG_URL/${remote_repo_prefix}-${normalized_kit_name}.git" >&2
+  exit 1
+}
+
+resolve_project_kit_source() {
+  local requested_kit_name="$1"
+  local primary_custom_kits_base="$2"
+  local legacy_custom_kits_base="$3"
+  local normalized_kit_name
+
+  normalized_kit_name="$(normalize_kit_name_for_remote "$requested_kit_name")"
+
+  if resolve_local_kit_source "$PROJECT_KITS_BASE" "$requested_kit_name"; then
+    return 0
+  fi
+
+  if resolve_local_kit_source "$primary_custom_kits_base" "$requested_kit_name"; then
+    return 0
+  fi
+
+  if resolve_local_kit_source "$LEGACY_TENANT_KITS_BASE" "$requested_kit_name"; then
+    return 0
+  fi
+
+  if resolve_local_kit_source "$legacy_custom_kits_base" "$requested_kit_name"; then
+    return 0
+  fi
+
+  if materialize_remote_kit_source_optional "$primary_custom_kits_base" "project-kit" "$requested_kit_name" "Project kit"; then
+    if resolve_local_kit_source "$primary_custom_kits_base" "$normalized_kit_name"; then
+      return 0
+    fi
+  fi
+
+  if materialize_remote_kit_source_optional "$legacy_custom_kits_base" "tenant-kit" "$requested_kit_name" "Legacy tenant kit"; then
+    if resolve_local_kit_source "$legacy_custom_kits_base" "$normalized_kit_name"; then
+      return 0
+    fi
+  fi
+
+  echo "Project kit '$requested_kit_name' could not be resolved after project-kit and legacy tenant-kit fallback checks." >&2
+  echo "Checked:" >&2
+  echo "  Built-in project kits: $PROJECT_KITS_BASE/$requested_kit_name" >&2
+  echo "  Custom project kits:   $primary_custom_kits_base/$requested_kit_name" >&2
+  echo "  Built-in tenant kits:  $LEGACY_TENANT_KITS_BASE/$requested_kit_name" >&2
+  echo "  Custom tenant kits:    $legacy_custom_kits_base/$requested_kit_name" >&2
+  echo "  Remote project kit:    $KIT_GITHUB_ORG_URL/project-kit-${normalized_kit_name}.git" >&2
+  echo "  Remote tenant kit:     $KIT_GITHUB_ORG_URL/tenant-kit-${normalized_kit_name}.git" >&2
   exit 1
 }
 
@@ -558,7 +622,7 @@ $seen_names
       *"
 $app_name
 "*)
-        echo "Duplicate embedded app name '$app_name' in tenant kit."
+        echo "Duplicate embedded app name '$app_name' in project kit."
         exit 1
         ;;
     esac
@@ -568,8 +632,8 @@ $app_name"
 }
 
 resolve_tenant_template_source() {
-  local selected_kit_name="${TENANT_KIT_NAME:-$DEFAULT_TENANT_KIT_NAME}"
-  resolve_kit_source "$TENANT_KITS_BASE" "$(resolve_supervision_extension_path customTenantKits)" "$selected_kit_name" "tenant-kit" "Tenant template"
+  local selected_kit_name="${PROJECT_KIT_NAME:-$DEFAULT_PROJECT_KIT_NAME}"
+  resolve_project_kit_source "$selected_kit_name" "$(resolve_supervision_extension_path customProjectKits)" "$(resolve_supervision_extension_path customTenantKits)"
 }
 
 resolve_app_template_source() {
@@ -636,7 +700,7 @@ parse_deploy_scope() {
       usage
       exit 0
       ;;
-    tenant|app) ;;
+    project|tenant|app) ;;
     *)
       usage
       exit 1
@@ -647,9 +711,16 @@ parse_deploy_scope() {
 parse_args() {
   while [[ "$#" -gt 0 ]]; do
     case "$1" in
+      -p|--project-kit)
+        [ -z "$PROJECT_KIT_NAME" ] || { echo "Project kit was already provided."; exit 1; }
+        PROJECT_KIT_NAME="${2:-}"
+        [ -n "$PROJECT_KIT_NAME" ] || { echo "Missing value for $1"; exit 1; }
+        shift 2
+        ;;
       -t|--tenant-kit)
-        TENANT_KIT_NAME="${2:-}"
-        [ -n "$TENANT_KIT_NAME" ] || { echo "Missing value for $1"; exit 1; }
+        [ -z "$PROJECT_KIT_NAME" ] || { echo "Project kit was already provided."; exit 1; }
+        PROJECT_KIT_NAME="${2:-}"
+        [ -n "$PROJECT_KIT_NAME" ] || { echo "Missing value for $1"; exit 1; }
         shift 2
         ;;
       -a|--app-kit)
@@ -727,7 +798,7 @@ deploy_app_from_source() {
 
   app_json="$(node "$TENANT_LAYOUT_CLI" find-app-json-by-domain-and-app-name "$VAR_BASE_DIR" "$target_domain" "$target_app_name" || true)"
   if [ -n "${app_json:-}" ] && [ "$app_json" != "null" ]; then
-    echo "App '$target_app_name' already exists in tenant '$target_domain'."
+    echo "App '$target_app_name' already exists in project '$target_domain'."
     exit 1
   fi
 
@@ -748,7 +819,7 @@ deploy_app_from_source() {
   echo "  Target: $target_label"
   echo "  Source: $source_label"
   echo "  Domain:  $target_domain"
-  echo "  Tenant:  tenant_${target_domain}"
+  echo "  Project: project_${target_domain}"
   echo "  App:     $target_app_name"
   echo "  Folder:  app_${target_app_name}"
   echo "  AppId:   app_${app_id}"
@@ -770,12 +841,12 @@ deploy_app_from_source() {
   apply_app_permissions "$app_dir" "$app_owner" "$app_owner_group" "$tenant_id" "$app_id" "$target_domain" "$target_app_name"
 
   if [ "$apply_tenant_permissions_after" = "true" ]; then
-    materialize_scope_contract_paths tenantScope "$tenant_id" "" "$target_domain"
+    materialize_scope_contract_paths projectScope "$tenant_id" "" "$target_domain"
     apply_tenant_permissions "$tenant_dir" "$tenant_owner" "$tenant_owner_group" "$tenant_id" "$target_domain"
   fi
 
   if [ "$run_after_cli" = "true" ]; then
-    run_after_cli_commands "tenant" "deploy app" "$tenant_id" "$app_id" "$target_domain" "$target_app_name"
+    run_after_cli_commands "project" "deploy app" "$tenant_id" "$app_id" "$target_domain" "$target_app_name"
   fi
 }
 
@@ -794,7 +865,7 @@ deploy_embedded_apps() {
     staged_embedded_dir="${embedded_dir}.embedded-staging"
     sudo rm -rf "$staged_embedded_dir"
     sudo mv "$embedded_dir" "$staged_embedded_dir"
-    echo "Found embedded app '$app_name' in tenant kit."
+    echo "Found embedded app '$app_name' in project kit."
     deploy_app_from_source \
       "$tenant_id" \
       "$tenant_dir" \
@@ -802,7 +873,7 @@ deploy_embedded_apps() {
       "$app_name" \
       "dir" \
       "$staged_embedded_dir" \
-      "embedded tenant app: $embedded_name" \
+      "embedded project app: $embedded_name" \
       "${app_name}@${tenant_domain}" \
       "false" \
       "false"
@@ -813,66 +884,66 @@ deploy_embedded_apps() {
 
 deploy_tenant() {
   [ -n "$TARGET_ALIAS" ] || { usage; exit 1; }
-  [ -n "$TENANT_KIT_NAME" ] || { echo "deploy tenant requires -t|--tenant-kit"; exit 1; }
-  [ -z "$APP_KIT_NAME" ] || { echo "deploy tenant does not accept -a|--app-kit"; exit 1; }
+  [ -n "$PROJECT_KIT_NAME" ] || { echo "deploy project requires -p|--project-kit (legacy -t|--tenant-kit is accepted)"; exit 1; }
+  [ -z "$APP_KIT_NAME" ] || { echo "deploy project does not accept -a|--app-kit"; exit 1; }
 
-  local normalized_target tenant_domain tenant_id tenant_dir tenant_user tenant_group tenant_owner tenant_owner_group tenant_shell_json tenant_fs_json tenant_kit_source tenant_kit_type tenant_kit_path existing_tenant_json selected_tenant_kit_name
+  local normalized_target tenant_domain tenant_id tenant_dir tenant_user tenant_group tenant_owner tenant_owner_group tenant_shell_json tenant_fs_json project_kit_source project_kit_type project_kit_path existing_tenant_json selected_project_kit_name
   normalized_target="$(normalize_lower "$TARGET_ALIAS")"
   if [[ ! "$normalized_target" =~ ^@([a-z0-9.-]+)$ ]]; then
-    echo "deploy tenant requires target shape @<domain>"
+    echo "deploy project requires target shape @<domain>"
     usage
     exit 1
   fi
 
   tenant_domain="${BASH_REMATCH[1]}"
-  tenant_kit_source="$(resolve_tenant_template_source)"
-  tenant_kit_type="${tenant_kit_source%%$'\t'*}"
-  tenant_kit_path="${tenant_kit_source#*$'\t'}"
-  selected_tenant_kit_name="$(basename "$tenant_kit_path")"
+  project_kit_source="$(resolve_tenant_template_source)"
+  project_kit_type="${project_kit_source%%$'\t'*}"
+  project_kit_path="${project_kit_source#*$'\t'}"
+  selected_project_kit_name="$(basename "$project_kit_path")"
 
   existing_tenant_json="$(node "$TENANT_LAYOUT_CLI" find-tenant-json-by-domain "$VAR_BASE_DIR" "$tenant_domain" || true)"
   if [ -n "${existing_tenant_json:-}" ] && [ "$existing_tenant_json" != "null" ]; then
-    echo "Tenant '$tenant_domain' already exists."
+    echo "Project '$tenant_domain' already exists."
     exit 1
   fi
 
-  tenant_id="$(node "$TENANT_LAYOUT_CLI" generate-unique-id tenant_ "$VAR_BASE_DIR")"
-  tenant_dir="$VAR_BASE_DIR/tenant_${tenant_domain}"
-  tenant_shell_json="$(node "$CONTRACT_IDENTITY_CLI" shell-identity tenantScope "$tenant_id")"
+  tenant_id="$(node "$TENANT_LAYOUT_CLI" generate-unique-id project_ "$VAR_BASE_DIR")"
+  tenant_dir="$VAR_BASE_DIR/project_${tenant_domain}"
+  tenant_shell_json="$(node "$CONTRACT_IDENTITY_CLI" shell-identity projectScope "$tenant_id")"
   tenant_fs_json="$(node "$CONTRACT_IDENTITY_CLI" tenant-filesystem "$tenant_id" "$tenant_domain")"
   tenant_user="$(resolve_json_field "$tenant_shell_json" user)"
   tenant_group="$(resolve_json_field "$tenant_shell_json" group)"
   tenant_owner="$(resolve_json_field "$tenant_fs_json" owner)"
   tenant_owner_group="$(resolve_json_field "$tenant_fs_json" group)"
 
-  echo "Deploying tenant:"
+  echo "Deploying project:"
   echo "  Target: $TARGET_ALIAS"
-  echo "  Tenant kit: $selected_tenant_kit_name"
+  echo "  Project kit: $selected_project_kit_name"
   echo "  Domain: $tenant_domain"
-  echo "  Folder: tenant_${tenant_domain}"
-  echo "  TenantId: tenant_${tenant_id}"
+  echo "  Folder: project_${tenant_domain}"
+  echo "  ProjectId: project_${tenant_id}"
   echo "  User:   $tenant_user"
   echo "  Group:  $tenant_group"
 
   create_tenant_shell_identity "$tenant_user" "$tenant_group"
 
   sudo mkdir -pv "$tenant_dir"
-  materialize_kit_source "$tenant_kit_type" "$tenant_kit_path" "$tenant_dir"
+  materialize_kit_source "$project_kit_type" "$project_kit_path" "$tenant_dir"
   [ -f "$tenant_dir/config.json" ] || echo '{}' | sudo tee "$tenant_dir/config.json" >/dev/null
   sudo node "$TENANT_LAYOUT_CLI" patch-tenant-config "$tenant_dir/config.json" "$tenant_id" "$tenant_domain" >/dev/null
 
-  materialize_scope_contract_paths tenantScope "$tenant_id" "" "$tenant_domain"
+  materialize_scope_contract_paths projectScope "$tenant_id" "" "$tenant_domain"
   deploy_embedded_apps "$tenant_id" "$tenant_dir" "$tenant_domain"
   apply_tenant_permissions "$tenant_dir" "$tenant_owner" "$tenant_owner_group" "$tenant_id" "$tenant_domain"
-  run_after_cli_commands "core" "deploy tenant" "$tenant_id" "" "$tenant_domain" ""
+  run_after_cli_commands "core" "deploy project" "$tenant_id" "" "$tenant_domain" ""
 
-  echo "Tenant '$TARGET_ALIAS' deployed successfully."
+  echo "Project '$TARGET_ALIAS' deployed successfully."
 }
 
 deploy_app() {
   [ -n "$TARGET_ALIAS" ] || { usage; exit 1; }
   [ -n "$APP_KIT_NAME" ] || { echo "deploy app requires -a|--app-kit"; exit 1; }
-  [ -z "$TENANT_KIT_NAME" ] || { echo "deploy app does not accept -t|--tenant-kit"; exit 1; }
+  [ -z "$PROJECT_KIT_NAME" ] || { echo "deploy app does not accept -p|--project-kit or legacy -t|--tenant-kit"; exit 1; }
 
   local normalized_target target_app_name target_domain target_tenant_id target_mode tenant_json tenant_dir tenant_id app_json app_kit_source app_kit_type app_kit_path selected_app_kit_name
   normalized_target="$(normalize_lower "$TARGET_ALIAS")"
@@ -886,7 +957,7 @@ deploy_app() {
     target_app_name="${BASH_REMATCH[1]}"
     target_domain="${BASH_REMATCH[2]}"
   else
-    echo "deploy app requires target shape <app_name>@<domain> or <app_name>@<tenant_id>"
+    echo "deploy app requires target shape <app_name>@<domain> or <app_name>@<project_id>"
     usage
     exit 1
   fi
@@ -899,7 +970,7 @@ deploy_app() {
   if [ "$target_mode" = "tenant_id" ]; then
     tenant_json="$(node "$TENANT_LAYOUT_CLI" find-tenant-json-by-id "$VAR_BASE_DIR" "$target_tenant_id" || true)"
     [ -n "${tenant_json:-}" ] && [ "$tenant_json" != "null" ] || {
-      echo "Tenant '$target_tenant_id' not found."
+      echo "Project '$target_tenant_id' not found."
       exit 1
     }
     tenant_id="$(json_field "$tenant_json" tenantId)"
@@ -909,7 +980,7 @@ deploy_app() {
   else
     tenant_json="$(node "$TENANT_LAYOUT_CLI" find-tenant-json-by-domain "$VAR_BASE_DIR" "$target_domain" || true)"
     [ -n "${tenant_json:-}" ] && [ "$tenant_json" != "null" ] || {
-      echo "Tenant '$target_domain' not found. Deploy the tenant first."
+      echo "Project '$target_domain' not found. Deploy the project first."
       exit 1
     }
     tenant_id="$(json_field "$tenant_json" tenantId)"
@@ -941,6 +1012,6 @@ parse_deploy_scope
 parse_args "$@"
 
 case "$DEPLOY_SCOPE" in
-  tenant) deploy_tenant ;;
+  project|tenant) deploy_tenant ;;
   app) deploy_app ;;
 esac

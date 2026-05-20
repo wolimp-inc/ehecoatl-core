@@ -8,7 +8,7 @@ policy_init "$0"
 DEPLOY_SCOPE="${1:-}"
 [ "$#" -gt 0 ] && shift || true
 
-TENANT_KIT_NAME=""
+PROJECT_KIT_NAME=""
 APP_KIT_NAME=""
 REPO_URL=""
 ENTER_AFTER_CREATE=0
@@ -26,15 +26,15 @@ APP_CONFIG_MODE="$(policy_value 'tenantLayout.appConfigMode')"
 DIRECTOR_USER="$(policy_value 'processUsers.director.user')"
 TRANSPORT_USER="$(policy_value 'processUsers.transport.user')"
 TENANT_LAYOUT_CLI="$SCRIPT_DIR/../lib/tenant-layout-cli.js"
-TENANT_KITS_BASE="$SCRIPT_DIR/../../builtin-extensions/tenant-kits"
+PROJECT_KITS_BASE="$SCRIPT_DIR/../../builtin-extensions/project-kits"
 APP_KITS_BASE="$SCRIPT_DIR/../../builtin-extensions/app-kits"
-DEFAULT_TENANT_KIT_NAME="empty-tenant-kit"
+DEFAULT_PROJECT_KIT_NAME="empty-project-kit"
 DEFAULT_APP_KIT_NAME="empty-app-kit"
 
 usage() {
   cat <<'EOF_USAGE'
 Usage:
-  ehecoatl deploy tenant @<domain> [--repo <repo_url>] [-t <tenant_kit>] [-e]
+  ehecoatl deploy tenant @<domain> [--repo <repo_url>] [-p <project_kit>] [-e]
   ehecoatl deploy app <app_name>@<domain> [--repo <repo_url>] [-a <app_kit>] [-e]
   ehecoatl deploy app <app_name>@<tenant_id> [--repo <repo_url>] [-a <app_kit>] [-e]
 EOF_USAGE
@@ -194,8 +194,8 @@ ensure_kit_exists() {
 }
 
 resolve_tenant_template_dir() {
-  local selected_kit_name="${TENANT_KIT_NAME:-$DEFAULT_TENANT_KIT_NAME}"
-  local template_dir="$TENANT_KITS_BASE/$selected_kit_name"
+  local selected_kit_name="${PROJECT_KIT_NAME:-$DEFAULT_PROJECT_KIT_NAME}"
+  local template_dir="$PROJECT_KITS_BASE/$selected_kit_name"
   ensure_kit_exists "$template_dir" "Tenant template"
   printf '%s' "$template_dir"
 }
@@ -259,9 +259,9 @@ parse_deploy_scope() {
 parse_args() {
   while [[ "$#" -gt 0 ]]; do
     case "$1" in
-      -t|--tenant-kit)
-        TENANT_KIT_NAME="${2:-}"
-        [ -n "$TENANT_KIT_NAME" ] || { echo "Missing value for $1"; exit 1; }
+      -p|--project-kit)
+        PROJECT_KIT_NAME="${2:-}"
+        [ -n "$PROJECT_KIT_NAME" ] || { echo "Missing value for $1"; exit 1; }
         shift 2
         ;;
       -a|--app-kit)
@@ -297,10 +297,10 @@ parse_args() {
 
 deploy_tenant() {
   [ -n "$TARGET_ALIAS" ] || { usage; exit 1; }
-  [ -n "$TENANT_KIT_NAME" ] || [ -n "$REPO_URL" ] || { echo "deploy tenant requires -t|--tenant-kit and/or --repo"; exit 1; }
+  [ -n "$PROJECT_KIT_NAME" ] || [ -n "$REPO_URL" ] || { echo "deploy tenant requires -p|--project-kit and/or --repo"; exit 1; }
   [ -z "$APP_KIT_NAME" ] || { echo "deploy tenant does not accept -a|--app-kit"; exit 1; }
 
-  local normalized_target tenant_domain tenant_id tenant_dir tenant_user tenant_group tenant_kit_dir existing_tenant_json selected_tenant_kit_name
+  local normalized_target tenant_domain tenant_id tenant_dir tenant_user tenant_group project_kit_dir existing_tenant_json selected_project_kit_name
   normalized_target="$(normalize_lower "$TARGET_ALIAS")"
   if [[ ! "$normalized_target" =~ ^@([a-z0-9.-]+)$ ]]; then
     echo "deploy tenant requires target shape @<domain>"
@@ -309,8 +309,8 @@ deploy_tenant() {
   fi
 
   tenant_domain="${BASH_REMATCH[1]}"
-  tenant_kit_dir="$(resolve_tenant_template_dir)"
-  selected_tenant_kit_name="$(basename "$tenant_kit_dir")"
+  project_kit_dir="$(resolve_tenant_template_dir)"
+  selected_project_kit_name="$(basename "$project_kit_dir")"
 
   existing_tenant_json="$(node "$TENANT_LAYOUT_CLI" find-tenant-json-by-domain "$VAR_BASE_DIR" "$tenant_domain" || true)"
   if [ -n "${existing_tenant_json:-}" ] && [ "$existing_tenant_json" != "null" ]; then
@@ -325,7 +325,7 @@ deploy_tenant() {
 
   echo "Deploying tenant:"
   echo "  Target: $TARGET_ALIAS"
-  echo "  Tenant kit: $selected_tenant_kit_name"
+  echo "  Project kit: $selected_project_kit_name"
   [ -n "$REPO_URL" ] && echo "  Repo:   $REPO_URL"
   echo "  Domain: $tenant_domain"
   echo "  Tenant: tenant_${tenant_id}"
@@ -334,7 +334,7 @@ deploy_tenant() {
   create_tenant_shell_identity "$tenant_user" "$tenant_group"
 
   sudo mkdir -pv "$tenant_dir"
-  sudo cp -R "$tenant_kit_dir/." "$tenant_dir/"
+  sudo cp -R "$project_kit_dir/." "$tenant_dir/"
   [ -f "$tenant_dir/config.json" ] || echo '{}' | sudo tee "$tenant_dir/config.json" >/dev/null
   sudo node "$TENANT_LAYOUT_CLI" patch-tenant-config "$tenant_dir/config.json" "$tenant_id" "$tenant_domain" "$REPO_URL" >/dev/null
 
@@ -347,7 +347,7 @@ deploy_tenant() {
 deploy_app() {
   [ -n "$TARGET_ALIAS" ] || { usage; exit 1; }
   [ -n "$APP_KIT_NAME" ] || [ -n "$REPO_URL" ] || { echo "deploy app requires -a|--app-kit and/or --repo"; exit 1; }
-  [ -z "$TENANT_KIT_NAME" ] || { echo "deploy app does not accept -t|--tenant-kit"; exit 1; }
+  [ -z "$PROJECT_KIT_NAME" ] || { echo "deploy app does not accept -t|--project-kit"; exit 1; }
 
   local normalized_target target_app_name target_domain target_tenant_id target_mode tenant_json tenant_dir tenant_id app_json app_id app_dir app_user app_group tenant_user app_kit_dir tenant_host selected_app_kit_name
   normalized_target="$(normalize_lower "$TARGET_ALIAS")"

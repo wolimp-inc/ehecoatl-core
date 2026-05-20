@@ -26,7 +26,7 @@ test(`core-tenant-action renders action templates with app/shared asset fallback
   fs.writeFileSync(path.join(appRoot, `assets`, `i18n`, `page.override.json`), `{"override":"yes"}`, `utf8`);
 
   const middlewareContext = createMiddlewareContext({
-    tenantRoute: {
+    projectRoute: {
       target: { run: { resource: `actions/example.js`, action: `index` } },
       origin: { hostname: `tenant.test`, domain: `tenant.test`, appName: `www` },
       i18n: [`shared/common.json`],
@@ -130,7 +130,7 @@ test(`template render support normalizes canonical and bare i18n entries under a
 
 test(`core-tenant-action rejects action responses that define both body and render`, async () => {
   const middlewareContext = createMiddlewareContext({
-    tenantRoute: {
+    projectRoute: {
       target: { run: { resource: `actions/example.js`, action: `index` } },
       origin: { hostname: `tenant.test`, domain: `tenant.test`, appName: `www` },
       folders: {
@@ -173,7 +173,7 @@ test(`core-tenant-action returns not found when the action render template is mi
   fs.mkdirSync(appAssetsRoot, { recursive: true });
 
   const middlewareContext = createMiddlewareContext({
-    tenantRoute: {
+    projectRoute: {
       target: { run: { resource: `actions/example.js`, action: `index` } },
       origin: { hostname: `tenant.test`, domain: `tenant.test`, appName: `www` },
       folders: {
@@ -214,7 +214,7 @@ test(`core-tenant-action returns not found when the action render template is mi
 
 test(`core-tenant-action rejects escaping render paths safely`, async () => {
   const middlewareContext = createMiddlewareContext({
-    tenantRoute: {
+    projectRoute: {
       target: { run: { resource: `actions/example.js`, action: `index` } },
       origin: { hostname: `tenant.test`, domain: `tenant.test`, appName: `www` },
       folders: {
@@ -255,7 +255,7 @@ test(`core-tenant-action rejects escaping render paths safely`, async () => {
 
 test(`core-tenant-action preserves existing body-only responses`, async () => {
   const middlewareContext = createMiddlewareContext({
-    tenantRoute: {
+    projectRoute: {
       target: { run: { resource: `actions/example.js`, action: `index` } },
       origin: { hostname: `tenant.test`, domain: `tenant.test`, appName: `www` },
       folders: {
@@ -292,7 +292,7 @@ test(`core-tenant-action preserves existing body-only responses`, async () => {
 });
 
 function createMiddlewareContext({
-  tenantRoute,
+  projectRoute,
   requestData = {
     method: `GET`,
     url: `tenant.test/example`,
@@ -304,7 +304,7 @@ function createMiddlewareContext({
   services = {}
 }) {
   return {
-    tenantRoute,
+    projectRoute,
     requestData,
     sessionData,
     viewData,

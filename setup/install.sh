@@ -15,7 +15,7 @@ set -eEuo pipefail
 # 11. Create the supervision scope group and auto-generated scope user.
 # 12. Publish the Ehecoatl CLI symlink in /usr/local/bin.
 # 13. Create the standard /var, /srv, and /etc directory layout.
-# 14. Repair dynamic tenant support paths needed by the host edge.
+# 14. Repair dynamic project support paths needed by the host edge.
 # 15. Apply ownership and permission rules to the standard directories.
 # 16. Materialize root-only administrative symlinks from the internal-scope contract.
 # 17. Grant runtime users read and traversal access to the project tree.
@@ -38,6 +38,7 @@ SYSTEMD_UNIT_PATH="/etc/systemd/system/$SYSTEMD_UNIT_NAME"
 WELCOME_PAGE_SOURCE="$INSTALL_DIR/welcome-ehecoatl.htm"
 WELCOME_PAGE_TARGET="/var/www/html/index.nginx-debian.html"
 VAR_BASE_DIR="/var/opt/ehecoatl"
+PROJECTS_BASE_DIR=""
 TENANTS_BASE_DIR=""
 SRV_BASE_DIR="/srv/opt/ehecoatl"
 ETC_BASE_DIR="/etc/opt/ehecoatl"
@@ -212,6 +213,7 @@ install_builtin_extension_dependencies() {
     "$INSTALL_DIR/builtin-extensions/adapters"
     "$INSTALL_DIR/builtin-extensions/plugins"
     "$INSTALL_DIR/builtin-extensions/app-kits"
+    "$INSTALL_DIR/builtin-extensions/project-kits"
     "$INSTALL_DIR/builtin-extensions/tenant-kits"
   )
   local package_files=()
@@ -270,6 +272,7 @@ verify_seccomp_addon_build() {
 load_runtime_policy() {
   POLICY_PROJECT_DIR="$SOURCE_RUNTIME_DIR"; POLICY_FILE="$SOURCE_RUNTIME_DIR/config/runtime-policy.json"; POLICY_DERIVER="$SOURCE_RUNTIME_DIR/contracts/derive-runtime-policy.js"
   VAR_BASE_DIR="$(policy_value 'paths.varBase')"; SRV_BASE_DIR="$(policy_value 'paths.srvBase')"; ETC_BASE_DIR="$(policy_value 'paths.etcBase')"
+  PROJECTS_BASE_DIR="$(policy_value 'paths.projectsBase')"
   TENANTS_BASE_DIR="$(policy_value 'paths.tenantsBase')"
   ETC_CONFIG_DIR="$ETC_BASE_DIR/config"; ETC_ADAPTERS_DIR="$ETC_BASE_DIR/adapters"; ETC_PLUGINS_DIR="$ETC_BASE_DIR/plugins"; INSTALL_META_FILE="$ETC_BASE_DIR/install-meta.env"
   EHECOATL_USER="$(policy_value 'system.sharedUser')"; EHECOATL_GROUP="$(policy_value 'system.sharedGroup')"
@@ -475,11 +478,18 @@ migrate_legacy_tenant_log_dir() {
   run_quiet $SUDO rsync -a --ignore-existing "$legacy_log_dir"/ "$canonical_log_dir"/
   run_quiet $SUDO mv "$legacy_log_dir" "$legacy_archive_dir"
 }
-repair_existing_tenant_runtime_support_paths() {
+repair_existing_project_runtime_support_paths() {
   [ -f "$CONTRACT_IDENTITY_CLI" ] || fail "Contract identity CLI not found at $CONTRACT_IDENTITY_CLI"
-  $SUDO test -d "$TENANTS_BASE_DIR" || return 0
 
-  local tenant_dir tenant_config_json tenant_id tenant_domain category_key item_key contract_json
+  local base_dir layer_key name_pattern tenant_dir tenant_config_json tenant_id tenant_domain category_key item_key contract_json
+  for base_dir in "$PROJECTS_BASE_DIR:projectScope:project_*" "$TENANTS_BASE_DIR:tenantScope:tenant_*"; do
+    layer_key="${base_dir#*:}"
+    layer_key="${layer_key%%:*}"
+    name_pattern="${base_dir##*:}"
+    base_dir="${base_dir%%:*}"
+    [ -n "$base_dir" ] || continue
+    $SUDO test -d "$base_dir" || continue
+
   while IFS= read -r tenant_dir; do
     [ -n "$tenant_dir" ] || continue
     tenant_config_json="$($SUDO node -e '
@@ -493,8 +503,8 @@ repair_existing_tenant_runtime_support_paths() {
       }
     ' "$tenant_dir/config.json" 2>/dev/null || true)"
     [ -n "${tenant_config_json:-}" ] || continue
-    tenant_id="$(json_field "$tenant_config_json" tenantId 2>/dev/null || true)"
-    tenant_domain="$(json_field "$tenant_config_json" tenantDomain 2>/dev/null || true)"
+    tenant_id="$(json_field "$tenant_config_json" projectId 2>/dev/null || json_field "$tenant_config_json" tenantId 2>/dev/null || true)"
+    tenant_domain="$(json_field "$tenant_config_json" projectDomain 2>/dev/null || json_field "$tenant_config_json" tenantDomain 2>/dev/null || true)"
     [ -n "$tenant_id" ] || continue
     [ -n "$tenant_domain" ] || continue
 
@@ -503,7 +513,7 @@ repair_existing_tenant_runtime_support_paths() {
     while read -r category_key item_key; do
       [ -n "${category_key:-}" ] || continue
       [ -n "${item_key:-}" ] || continue
-      contract_json="$(resolve_contract_path_entry tenantScope "$category_key" "$item_key" "$tenant_id" "" "$tenant_domain")"
+      contract_json="$(resolve_contract_path_entry "$layer_key" "$category_key" "$item_key" "$tenant_id" "" "$tenant_domain")"
       materialize_dynamic_contract_path_entry "$contract_json"
     done <<'EOF_SUPPORT_PATHS'
 LOGS root
@@ -511,7 +521,8 @@ LOGS error
 LOGS boot
 RUNTIME cache
 EOF_SUPPORT_PATHS
-  done < <($SUDO find "$TENANTS_BASE_DIR" -mindepth 1 -maxdepth 1 -type d -name 'tenant_*' -print | sort)
+  done < <($SUDO find "$base_dir" -mindepth 1 -maxdepth 1 -type d -name "$name_pattern" -print | sort)
+  done
 }
 should_skip_existing_force_topology_path() {
   local target_path="$1"
@@ -520,7 +531,7 @@ should_skip_existing_force_topology_path() {
   [ -e "$target_path" ] || return 1
 
   case "$target_path" in
-    "$VAR_BASE_DIR"|"$VAR_BASE_DIR/tenants")
+    "$VAR_BASE_DIR"|"$VAR_BASE_DIR/projects"|"$VAR_BASE_DIR/tenants")
       return 0
       ;;
     *)
@@ -750,7 +761,7 @@ wait_for_director_ready() {
   log "Waiting for director readiness via $socket_path"
   while [ "$elapsed" -lt "$timeout_seconds" ]; do
     if $SUDO test -S "$socket_path"; then
-      if node "$director_rpc_cli" rescan-tenants --json >/dev/null 2>&1; then
+      if node "$director_rpc_cli" rescan-projects --json >/dev/null 2>&1; then
         return 0
       fi
     fi
@@ -903,7 +914,7 @@ print_dry_run_summary() {
   log "  - Publish the local ehecoatl-runtime payload from $SOURCE_RUNTIME_DIR to $INSTALL_DIR"
   log "  - Publish CLI symlink at $CLI_TARGET"
   log "  - Create runtime directories under $ETC_BASE_DIR, $VAR_BASE_DIR, and $SRV_BASE_DIR"
-  log "  - Repair existing tenant .ehecoatl/log and .ehecoatl/.cache paths"
+  log "  - Repair existing project .ehecoatl/log and .ehecoatl/.cache paths, plus legacy tenant paths"
   log "  - Create/update root-only helper symlinks under /root/ehecoatl"
   log "  - Create missing runtime/*.json, plugins/*.json, and adapters/*.json under $ETC_CONFIG_DIR from $SOURCE_RUNTIME_DIR/config/default.config.js"
   log "  - With --force, regenerate runtime/*.json, plugins/*.json, and adapters/*.json under $ETC_CONFIG_DIR"
@@ -1014,9 +1025,9 @@ materialize_contract_topology
 log "Writing split JSON configuration"
 write_split_json_config
 
-# Step 14: Repair dynamic tenant runtime support paths.
-step 14 "Repairing existing tenant runtime support paths"
-repair_existing_tenant_runtime_support_paths
+# Step 14: Repair dynamic project runtime support paths.
+step 14 "Repairing existing project runtime support paths"
+repair_existing_project_runtime_support_paths
 
 # Step 15: Apply ownership and permissions.
 step 15 "Setting permissions"

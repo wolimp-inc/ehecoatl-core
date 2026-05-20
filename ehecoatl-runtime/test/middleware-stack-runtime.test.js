@@ -12,7 +12,7 @@ test(`middleware-stack-runtime composes core stack order and route stack app-ove
   const executionTrace = [];
   const pluginTrace = [];
   const executionContext = createExecutionContext({
-    tenantRoute: createTenantRoute({
+    projectRoute: createTenantRoute({
       middleware: [`web`],
       tenantId: `aaaaaaaaaaaa`,
       appId: `bbbbbbbbbbbb`
@@ -84,7 +84,7 @@ test(`middleware-stack-runtime stops after a core middleware short-circuits`, as
   const executionTrace = [];
   const pluginTrace = [];
   const executionContext = createExecutionContext({
-    tenantRoute: createTenantRoute({
+    projectRoute: createTenantRoute({
       middleware: [`web`],
       tenantId: `aaaaaaaaaaaa`,
       appId: `bbbbbbbbbbbb`
@@ -135,7 +135,7 @@ test(`middleware-stack-runtime stops after a core middleware short-circuits`, as
 test(`middleware-stack-runtime stops the unified chain when a route middleware short-circuits`, async () => {
   const executionTrace = [];
   const executionContext = createExecutionContext({
-    tenantRoute: createTenantRoute({
+    projectRoute: createTenantRoute({
       middleware: [`web`],
       tenantId: `aaaaaaaaaaaa`,
       appId: `bbbbbbbbbbbb`
@@ -181,7 +181,7 @@ test(`middleware-stack-runtime stops the unified chain when a route middleware s
 test(`middleware-stack-runtime expands tenant middleware groups into executable route middleware chain`, async () => {
   const executionTrace = [];
   const executionContext = createExecutionContext({
-    tenantRoute: createTenantRoute({
+    projectRoute: createTenantRoute({
       middleware: [`api`],
       tenantId: `aaaaaaaaaaaa`,
       appId: `bbbbbbbbbbbb`
@@ -238,7 +238,7 @@ test(`middleware-stack-runtime expands tenant middleware groups into executable 
 test(`middleware-stack-runtime runs websocket upgrade stack as route http middlewares then app ws-upgrade`, async () => {
   const executionTrace = [];
   const executionContext = createExecutionContext({
-    tenantRoute: createTenantRoute({
+    projectRoute: createTenantRoute({
       middleware: [`auth`],
       tenantId: `aaaaaaaaaaaa`,
       appId: `bbbbbbbbbbbb`,
@@ -297,7 +297,7 @@ test(`middleware-stack-runtime runs websocket upgrade stack as route http middle
 test(`middleware-stack-runtime websocket upgrade short-circuit skips app ws-upgrade`, async () => {
   const executionTrace = [];
   const executionContext = createExecutionContext({
-    tenantRoute: createTenantRoute({
+    projectRoute: createTenantRoute({
       middleware: [`auth`],
       tenantId: `aaaaaaaaaaaa`,
       appId: `bbbbbbbbbbbb`,
@@ -347,7 +347,7 @@ test(`middleware-stack-runtime websocket upgrade short-circuit skips app ws-upgr
 test(`middleware-stack-runtime returns 500 when middleware calls next twice`, async () => {
   const pluginTrace = [];
   const executionContext = createExecutionContext({
-    tenantRoute: createTenantRoute({
+    projectRoute: createTenantRoute({
       middleware: null,
       tenantId: `aaaaaaaaaaaa`,
       appId: `bbbbbbbbbbbb`
@@ -387,7 +387,7 @@ test(`middleware-stack-runtime returns 500 when middleware calls next twice`, as
 test(`middleware-stack-runtime fails when a route middleware label cannot be resolved`, async () => {
   const pluginTrace = [];
   const executionContext = createExecutionContext({
-    tenantRoute: createTenantRoute({
+    projectRoute: createTenantRoute({
       middleware: [`web`],
       tenantId: `aaaaaaaaaaaa`,
       appId: `bbbbbbbbbbbb`
@@ -522,13 +522,13 @@ function createOrchestrator({
 }
 
 function createExecutionContext({
-  tenantRoute
+  projectRoute
 }) {
   let aborted = false;
   let finishCallbacksCalled = 0;
 
   return {
-    tenantRoute,
+    projectRoute,
     requestData: {
       url: `www.example.com/hello`,
       method: `GET`,

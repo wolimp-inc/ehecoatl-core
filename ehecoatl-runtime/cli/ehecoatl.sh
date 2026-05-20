@@ -16,7 +16,7 @@ resolve_auth_scope() {
 
   local scopes=()
   user_has_group g_superScope && scopes+=("core")
-  user_has_group_regex '^g_[a-z0-9]+$' && scopes+=("tenant")
+  user_has_group_regex '^g_[a-z0-9]+$' && scopes+=("project")
   user_has_group_regex '^g_[a-z0-9]+_[a-z0-9]+$' && scopes+=("app")
 
   if [ "${#scopes[@]}" -eq 0 ]; then
@@ -37,7 +37,7 @@ resolve_auth_scope() {
 
 allowed_scopes_for_auth_scope() {
   if [ "$1" = "root" ]; then
-    printf 'core tenant app firewall'
+    printf 'core project tenant app firewall'
     return 0
   fi
 
@@ -46,7 +46,8 @@ allowed_scopes_for_auth_scope() {
     *core*) allowed+=("core") ;;
   esac
   case "$1" in
-    *tenant*) allowed+=("tenant") ;;
+    *project*) allowed+=("project" "tenant") ;;
+    *tenant*) allowed+=("tenant" "project") ;;
   esac
   case "$1" in
     *app*) allowed+=("app") ;;
@@ -88,7 +89,7 @@ user_has_group_regex() {
 
 is_known_scope() {
   case "$1" in
-    core|tenant|app|firewall)
+    core|project|tenant|app|firewall)
       return 0
       ;;
     *)
@@ -111,11 +112,14 @@ required_group_hint_for_scope() {
     core)
       printf 'root or g_superScope'
       ;;
+    project)
+      printf 'root or g_{project_id}'
+      ;;
     tenant)
-      printf 'root or g_{tenant_id}'
+      printf 'root or g_{project_id} (legacy tenant alias)'
       ;;
     app)
-      printf 'root or g_{tenant_id}_{app_id}'
+      printf 'root or g_{project_id}_{app_id}'
       ;;
     firewall)
       printf 'root'
@@ -134,8 +138,8 @@ print_not_authorized() {
   echo "Current scope: $AUTH_SCOPE"
   echo "Current groups: $EHECOATL_CLI_GROUPS"
   echo "Current directory scope: $(describe_cwd_scope)"
-  if [ -n "${EHECOATL_CLI_EXPLICIT_TENANT_TARGET:-}" ]; then
-    echo "Explicit tenant target: $EHECOATL_CLI_EXPLICIT_TENANT_TARGET"
+  if [ -n "${EHECOATL_CLI_EXPLICIT_PROJECT_TARGET:-${EHECOATL_CLI_EXPLICIT_TENANT_TARGET:-}}" ]; then
+    echo "Explicit project target: ${EHECOATL_CLI_EXPLICIT_PROJECT_TARGET:-$EHECOATL_CLI_EXPLICIT_TENANT_TARGET}"
   fi
   if [ -n "${EHECOATL_CLI_EXPLICIT_APP_TARGET:-}" ]; then
     echo "Explicit app target: $EHECOATL_CLI_EXPLICIT_APP_TARGET"
@@ -155,12 +159,15 @@ list_scope_command_names() {
 
 print_scope_help() {
   local scope_name="$1"
-  if [ "$scope_name" = "tenant" ]; then
-    if [ -n "${EHECOATL_CLI_EXPLICIT_TENANT_TARGET:-}" ]; then
-      echo "Tenant target override: $EHECOATL_CLI_EXPLICIT_TENANT_TARGET"
+  if [ "$scope_name" = "project" ] || [ "$scope_name" = "tenant" ]; then
+    if [ -n "${EHECOATL_CLI_EXPLICIT_PROJECT_TARGET:-${EHECOATL_CLI_EXPLICIT_TENANT_TARGET:-}}" ]; then
+      echo "Project target override: ${EHECOATL_CLI_EXPLICIT_PROJECT_TARGET:-$EHECOATL_CLI_EXPLICIT_TENANT_TARGET}"
     else
-      echo "Tenant commands may also use an explicit target override:"
-      echo "  ehecoatl tenant @<domain> ..."
+      echo "Project commands may also use an explicit target override:"
+      echo "  ehecoatl project @<domain> ..."
+    fi
+    if [ "$scope_name" = "tenant" ]; then
+      echo "Legacy alias: prefer 'ehecoatl project ...'."
     fi
     echo
   elif [ "$scope_name" = "app" ]; then
@@ -169,7 +176,7 @@ print_scope_help() {
     else
       echo "App commands may also use an explicit target override:"
       echo "  ehecoatl app <app_name>@<domain> ..."
-      echo "  ehecoatl app <app_name>@<tenant_id> ..."
+      echo "  ehecoatl app <app_name>@<project_id> ..."
     fi
     echo
   fi
@@ -182,8 +189,8 @@ print_help() {
   echo "Current scope: $AUTH_SCOPE"
   echo "Current groups: $EHECOATL_CLI_GROUPS"
   echo "Current directory scope: $(describe_cwd_scope)"
-  if [ -n "${EHECOATL_CLI_EXPLICIT_TENANT_TARGET:-}" ]; then
-    echo "Explicit tenant target: $EHECOATL_CLI_EXPLICIT_TENANT_TARGET"
+  if [ -n "${EHECOATL_CLI_EXPLICIT_PROJECT_TARGET:-${EHECOATL_CLI_EXPLICIT_TENANT_TARGET:-}}" ]; then
+    echo "Explicit project target: ${EHECOATL_CLI_EXPLICIT_PROJECT_TARGET:-$EHECOATL_CLI_EXPLICIT_TENANT_TARGET}"
   fi
   if [ -n "${EHECOATL_CLI_EXPLICIT_APP_TARGET:-}" ]; then
     echo "Explicit app target: $EHECOATL_CLI_EXPLICIT_APP_TARGET"
@@ -191,7 +198,7 @@ print_help() {
   echo
   echo "Available scopes:"
 
-  for scope_name in core tenant app firewall; do
+  for scope_name in core project tenant app firewall; do
     if scope_is_allowed "$scope_name" "$ALLOWED_SCOPES"; then
       echo "- $scope_name"
       list_scope_command_names "$scope_name" | sed 's/^/  - /'
@@ -233,10 +240,20 @@ if ! scope_is_allowed "$REQUESTED_SCOPE" "$ALLOWED_SCOPES"; then
   exit 1
 fi
 
+if [ "$REQUESTED_SCOPE" = "project" ] && [ "$#" -gt 0 ]; then
+  case "${1:-}" in
+    @*)
+      export EHECOATL_CLI_EXPLICIT_PROJECT_TARGET="$1"
+      shift
+      ;;
+  esac
+fi
+
 if [ "$REQUESTED_SCOPE" = "tenant" ] && [ "$#" -gt 0 ]; then
   case "${1:-}" in
     @*)
       export EHECOATL_CLI_EXPLICIT_TENANT_TARGET="$1"
+      export EHECOATL_CLI_EXPLICIT_PROJECT_TARGET="$1"
       shift
       ;;
   esac

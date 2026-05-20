@@ -13,15 +13,18 @@ async function main() {
   const wantsJson = args.includes(`--json`);
 
   switch (command) {
+    case `rescan-projects`:
     case `rescan-tenants`: {
       const config = await loadUserConfig();
-      const question = config.adapters.tenantDirectoryResolver?.question?.forceRescanNow ?? `tenancyRescanNow`;
+      const question = config.adapters.projectDirectoryResolver?.question?.forceRescanNow
+        ?? config.adapters.tenantDirectoryResolver?.question?.forceRescanNow
+        ?? `projectRescanNow`;
       const socketPath = getDirectorRpcSocketPath();
       const response = await sendDirectorQuestion({
         socketPath,
         question,
         data: {
-          reason: `cli_core_rescan_tenants`
+          reason: `cli_core_rescan_projects`
         }
       });
 
@@ -42,7 +45,9 @@ async function main() {
       }
 
       const config = await loadUserConfig();
-      const question = config.adapters.tenantDirectoryResolver?.question?.shutdownProcessNow ?? `tenancyShutdownProcessNow`;
+      const question = config.adapters.projectDirectoryResolver?.question?.shutdownProcessNow
+        ?? config.adapters.tenantDirectoryResolver?.question?.shutdownProcessNow
+        ?? `projectShutdownProcessNow`;
       const timeoutMs = readFlagValue(args, `--timeout-ms`);
       const reason = readFlagValue(args, `--reason`) ?? `cli_shutdown_process`;
       const socketPath = getDirectorRpcSocketPath();

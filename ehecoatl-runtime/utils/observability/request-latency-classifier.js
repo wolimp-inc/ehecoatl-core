@@ -5,6 +5,7 @@
 
 function classifyRequestLatency({
   durationMs,
+  projectRoute,
   tenantRoute,
   meta,
   config
@@ -15,7 +16,7 @@ function classifyRequestLatency({
     return null;
   }
 
-  const profile = resolveProfile({ tenantRoute, meta });
+  const profile = resolveProfile({ projectRoute: projectRoute ?? tenantRoute, meta });
   const thresholds = resolveThresholds(config, profile);
   const latencyClass = resolveLatencyClass(numericDuration, thresholds);
 
@@ -27,8 +28,8 @@ function classifyRequestLatency({
   };
 }
 
-function resolveProfile({ tenantRoute, meta }) {
-  if (tenantRoute?.isStaticAsset?.()) return `staticAsset`;
+function resolveProfile({ projectRoute, meta }) {
+  if (projectRoute?.isStaticAsset?.()) return `staticAsset`;
   if (meta?.cached) return `cacheHit`;
   if (meta?.action) return `action`;
   return `default`;

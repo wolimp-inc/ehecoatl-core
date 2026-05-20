@@ -34,9 +34,9 @@ function isCrossOriginRequest(source) {
 }
 
 function getAllowedCorsOrigins(source) {
-  const tenantRoute = getTenantRoute(source);
-  return Array.isArray(tenantRoute?.cors)
-    ? tenantRoute.cors
+  const projectRoute = getProjectRoute(source);
+  return Array.isArray(projectRoute?.cors)
+    ? projectRoute.cors
     : [];
 }
 
@@ -48,10 +48,10 @@ function isOriginAllowed(source, origin) {
 }
 
 function resolveAllowedMethods(source) {
-  const tenantRoute = getTenantRoute(source);
-  const effectiveMethods = Array.isArray(tenantRoute?.effectiveMethods)
-    ? tenantRoute.effectiveMethods
-    : buildEffectiveMethods(tenantRoute?.methods);
+  const projectRoute = getProjectRoute(source);
+  const effectiveMethods = Array.isArray(projectRoute?.effectiveMethods)
+    ? projectRoute.effectiveMethods
+    : buildEffectiveMethods(projectRoute?.methods);
   return effectiveMethods.join(`, `);
 }
 
@@ -105,8 +105,8 @@ function getRequestData(source) {
   return source ?? null;
 }
 
-function getTenantRoute(source) {
-  if (source?.tenantRoute) return source.tenantRoute;
+function getProjectRoute(source) {
+  if (source?.projectRoute) return source.projectRoute;
   return source ?? null;
 }
 

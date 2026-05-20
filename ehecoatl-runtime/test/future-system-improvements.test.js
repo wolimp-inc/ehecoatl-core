@@ -47,7 +47,7 @@ test(`tenant action stage preserves tenant-provided failure status and body`, as
     cookie: null
   };
   const middlewareContext = {
-    tenantRoute: { target: { run: { resource: `actions/example.js`, action: `index` } }, origin: { hostname: `tenant.test`, domain: `tenant.test`, appName: `www` } },
+    projectRoute: { target: { run: { resource: `actions/example.js`, action: `index` } }, origin: { hostname: `tenant.test`, domain: `tenant.test`, appName: `www` } },
     requestData: { url: `tenant.test/missing` },
     sessionData: {},
     services: {
@@ -92,7 +92,7 @@ test(`tenant action stage preserves tenant-provided failure headers and cookies`
     cookie: {}
   };
   const middlewareContext = {
-    tenantRoute: { target: { run: { resource: `actions/example.js`, action: `index` } }, origin: { hostname: `tenant.test`, domain: `tenant.test`, appName: `www` } },
+    projectRoute: { target: { run: { resource: `actions/example.js`, action: `index` } }, origin: { hostname: `tenant.test`, domain: `tenant.test`, appName: `www` } },
     requestData: { url: `tenant.test/failure` },
     sessionData: {},
     services: {
@@ -152,7 +152,7 @@ test(`tenant action stage uses a non-production fallback body when tenant RPC fa
       headers: {}
     };
     const middlewareContext = {
-      tenantRoute: { target: { run: { resource: `actions/example.js`, action: `index` } }, origin: { hostname: `tenant.test`, domain: `tenant.test`, appName: `www` } },
+      projectRoute: { target: { run: { resource: `actions/example.js`, action: `index` } }, origin: { hostname: `tenant.test`, domain: `tenant.test`, appName: `www` } },
       requestData: { url: `tenant.test/failure` },
       sessionData: {},
       services: {
@@ -200,7 +200,7 @@ test(`tenant action stage records action execution metadata from detailed RPC re
   meta.correlationId = `req-action-01`;
   let rpcRequest = null;
   const middlewareContext = {
-    tenantRoute: { target: { run: { resource: `actions/example.js`, action: `index` } }, origin: { hostname: `tenant.test`, domain: `tenant.test`, appName: `www` } },
+    projectRoute: { target: { run: { resource: `actions/example.js`, action: `index` } }, origin: { hostname: `tenant.test`, domain: `tenant.test`, appName: `www` } },
     requestData: { url: `tenant.test/hello`, requestId: `req-action-01` },
     sessionData: {},
     meta,
@@ -255,7 +255,7 @@ test(`tenant action stage records action execution metadata from detailed RPC re
 
 test(`isolated runtime action handling returns 404 when the run target module is missing`, async () => {
   const response = await handleIsolatedActionRequest({
-    tenantRoute: {
+    projectRoute: {
       run: `missing@show`,
       resource: `missing`,
       action: `show`
@@ -286,7 +286,7 @@ test(`isolated runtime action handling returns 500 for an invalid action handler
 
   try {
     const response = await handleIsolatedActionRequest({
-      tenantRoute: {
+      projectRoute: {
         run: `invalid@show`,
         resource: `invalid`,
         action: `show`
@@ -322,7 +322,7 @@ test(`isolated runtime action handling returns 500 when action loading fails for
 
   try {
     const response = await handleIsolatedActionRequest({
-      tenantRoute: {
+      projectRoute: {
         run: `broken@show`,
         resource: `broken`,
         action: `show`
@@ -404,7 +404,7 @@ test(`isolated runtime action handling falls back to the declared app topology a
 
   try {
     const response = await handleIsolatedActionRequest({
-      tenantRoute: {
+      projectRoute: {
         target: {
           run: {
             resource: `hello`,
@@ -448,7 +448,7 @@ test(`tenant action stage keeps the generic upstream body in production`, async 
       headers: {}
     };
     const middlewareContext = {
-      tenantRoute: { target: { run: { resource: `actions/example.js`, action: `index` } }, origin: { hostname: `tenant.test`, domain: `tenant.test`, appName: `www` } },
+      projectRoute: { target: { run: { resource: `actions/example.js`, action: `index` } }, origin: { hostname: `tenant.test`, domain: `tenant.test`, appName: `www` } },
       requestData: { url: `tenant.test/failure` },
       sessionData: {},
       services: {
@@ -493,7 +493,7 @@ test(`tenant action stage reports transport failure directly without retrying GE
     };
     let askCalls = 0;
     const middlewareContext = {
-      tenantRoute: { target: { run: { resource: `actions/example.js`, action: `index` } }, origin: { hostname: `tenant.test`, domain: `tenant.test`, appName: `www` } },
+      projectRoute: { target: { run: { resource: `actions/example.js`, action: `index` } }, origin: { hostname: `tenant.test`, domain: `tenant.test`, appName: `www` } },
       requestData: { method: `GET`, url: `tenant.test/no-retry` },
       sessionData: {},
       services: {
@@ -531,7 +531,7 @@ test(`response cache materialization persists safe public action output`, async 
   const writes = [];
   const cacheSets = [];
   const middlewareContext = {
-    tenantRoute: {
+    projectRoute: {
       target: {
         run: {
           action: `hello@index`
@@ -620,7 +620,7 @@ test(`response cache materialization persists safe public action output`, async 
 test(`response cache materialization skips non-cacheable session routes`, async () => {
   let wrote = false;
   const middlewareContext = {
-    tenantRoute: {
+    projectRoute: {
       target: {
         run: {
           action: `session@index`
@@ -693,7 +693,7 @@ test(`response cache materialization skips write when tenant-specific disk limit
   const cacheSets = [];
   const writes = [];
   const middlewareContext = {
-    tenantRoute: {
+    projectRoute: {
       host: `tenant.test`,
       rootFolder: tenantRoot,
       origin: {
@@ -820,7 +820,7 @@ test(`response cache materialization can cleanup tracked files and proceed withi
   fs.utimesSync(staleCacheFile, staleDate, staleDate);
 
   const middlewareContext = {
-    tenantRoute: {
+    projectRoute: {
       host: `tenant.test`,
       rootFolder: tenantRoot,
       origin: {
@@ -1287,7 +1287,7 @@ test(`route resolution throws immediately when manager returns an explicit RPC f
 });
 
 test(`tenant route falls back to GET when methods and methodsAvailable are omitted`, () => {
-  const tenantRoute = new TenantRoute({
+  const projectRoute = new TenantRoute({
     host: `tenant.test`,
     domain: `tenant.test`,
     appName: `www`,
@@ -1295,22 +1295,22 @@ test(`tenant route falls back to GET when methods and methodsAvailable are omitt
     pointsTo: `run > hello@index`
   });
 
-  assert.deepEqual(tenantRoute.methodsAvailable, [`GET`]);
-  assert.deepEqual(tenantRoute.methods, [`GET`]);
-  assert.equal(tenantRoute.meta.target.type, `run`);
-  assert.equal(tenantRoute.meta.target.value, `hello@index`);
-  assert.deepEqual(tenantRoute.target.run, {
+  assert.deepEqual(projectRoute.methodsAvailable, [`GET`]);
+  assert.deepEqual(projectRoute.methods, [`GET`]);
+  assert.equal(projectRoute.meta.target.type, `run`);
+  assert.equal(projectRoute.meta.target.value, `hello@index`);
+  assert.deepEqual(projectRoute.target.run, {
     resource: `hello`,
     action: `index`
   });
-  assert.equal(tenantRoute.allowsHostMethod(`GET`), true);
-  assert.equal(tenantRoute.allowsHostMethod(`POST`), false);
-  assert.equal(tenantRoute.allowsMethod(`GET`), true);
-  assert.equal(tenantRoute.allowsMethod(`POST`), false);
+  assert.equal(projectRoute.allowsHostMethod(`GET`), true);
+  assert.equal(projectRoute.allowsHostMethod(`POST`), false);
+  assert.equal(projectRoute.allowsMethod(`GET`), true);
+  assert.equal(projectRoute.allowsMethod(`POST`), false);
 });
 
 test(`tenant route resolves static assets from the app assets tree`, () => {
-  const tenantRoute = new TenantRoute({
+  const projectRoute = new TenantRoute({
     host: `tenant.test`,
     domain: `tenant.test`,
     appName: `www`,
@@ -1319,8 +1319,8 @@ test(`tenant route resolves static assets from the app assets tree`, () => {
     pointsTo: `asset > htm/index.htm`
   });
 
-  assert.equal(tenantRoute.assetPath(), `/tmp/tenant/assets/htm/index.htm`);
-  assert.equal(tenantRoute.meta.target.asset.path, `htm/index.htm`);
+  assert.equal(projectRoute.assetPath(), `/tmp/tenant/assets/htm/index.htm`);
+  assert.equal(projectRoute.meta.target.asset.path, `htm/index.htm`);
 });
 
 test(`response cache resolver stage lets a queued consumer retry and reuse the cached artifact`, async () => {
@@ -1329,7 +1329,7 @@ test(`response cache resolver stage lets a queued consumer retry and reuse the c
   let body = null;
   const meta = new ExecutionMetaData();
   const middlewareContext = {
-    tenantRoute: {
+    projectRoute: {
       host: `tenant.test`,
       cache: 60,
       folders: {
@@ -1386,7 +1386,7 @@ test(`response cache resolver stage lets a queued consumer retry and reuse the c
 test(`response cache resolver stage clears a stale response-cache pointer when the artifact is missing`, async () => {
   const deletedKeys = [];
   const middlewareContext = {
-    tenantRoute: {
+    projectRoute: {
       host: `tenant.test`,
       cache: 60,
       folders: {
@@ -1437,7 +1437,7 @@ test(`response cache resolver stage returns 304 when If-Modified-Since matches c
     body: `initial`
   };
   const middlewareContext = {
-    tenantRoute: {
+    projectRoute: {
       host: `tenant.test`,
       cache: 60,
       folders: {
@@ -1498,7 +1498,7 @@ test(`response cache resolver stage sets Last-Modified when streaming cached art
     body: null
   };
   const middlewareContext = {
-    tenantRoute: {
+    projectRoute: {
       host: `tenant.test`,
       cache: 60,
       folders: {
@@ -1575,14 +1575,14 @@ test(`tenant directory resolver invalidates shared route and response cache pref
     config: {
       _adapters: {
         tenantDirectoryResolver: require.resolve(`@adapter/inbound/tenant-directory-resolver/default-tenancy`),
-        tenantRouteMatcherCompiler: require.resolve(`@adapter/inbound/tenant-route-matcher-compiler/default-routing-v1`),
+        projectRouteMatcherCompiler: require.resolve(`@adapter/inbound/tenant-route-matcher-compiler/default-routing-v1`),
         requestUriRoutingRuntime: require.resolve(`@adapter/inbound/request-uri-routing-runtime/default-uri-router-runtime`)
       },
       tenantDirectoryResolver: {
         tenantsPath: `/tmp/tenancy-resolver-test`,
         scanIntervalMs: 300000
       },
-      tenantRouteMatcherCompiler: {
+      projectRouteMatcherCompiler: {
         adapter: `default-routing-v1`
       },
       requestUriRoutingRuntime: {
@@ -1600,7 +1600,7 @@ test(`tenant directory resolver invalidates shared route and response cache pref
           return 1;
         }
       },
-      tenantRouteMatcherCompiler: createTestTenantRouteMatcherCompiler()
+      projectRouteMatcherCompiler: createTestTenantRouteMatcherCompiler()
     }
   };
   const tenantDirectoryResolver = new TenantDirectoryResolver(kernelContext);
@@ -1608,7 +1608,7 @@ test(`tenant directory resolver invalidates shared route and response cache pref
   const requestUriRoutingRuntime = new RequestUriRoutingRuntime(kernelContext);
   tenantDirectoryResolver.attachRouteRuntime(requestUriRoutingRuntime);
   requestUriRoutingRuntime.localCache.set(`tenant.test/hello`, {
-    tenantRoute: { origin: { hostname: `tenant.test` } },
+    projectRoute: { origin: { hostname: `tenant.test` } },
     validUntil: Date.now() + 1000
   });
 
@@ -1642,7 +1642,7 @@ test(`tenant route runtime asynchronously removes orphaned response-cache artifa
     config: {
       _adapters: {
         tenantDirectoryResolver: require.resolve(`@adapter/inbound/tenant-directory-resolver/default-tenancy`),
-        tenantRouteMatcherCompiler: require.resolve(`@adapter/inbound/tenant-route-matcher-compiler/default-routing-v1`),
+        projectRouteMatcherCompiler: require.resolve(`@adapter/inbound/tenant-route-matcher-compiler/default-routing-v1`),
         requestUriRoutingRuntime: require.resolve(`@adapter/inbound/request-uri-routing-runtime/default-uri-router-runtime`)
       },
       tenantDirectoryResolver: {
@@ -1650,7 +1650,7 @@ test(`tenant route runtime asynchronously removes orphaned response-cache artifa
         scanIntervalMs: 300000,
         responseCacheCleanupIntervalMs: 300000
       },
-      tenantRouteMatcherCompiler: {
+      projectRouteMatcherCompiler: {
         adapter: `default-routing-v1`
       },
       requestUriRoutingRuntime: {
@@ -1663,7 +1663,7 @@ test(`tenant route runtime asynchronously removes orphaned response-cache artifa
     useCases: {
       storageService,
       sharedCacheService,
-      tenantRouteMatcherCompiler: createTestTenantRouteMatcherCompiler()
+      projectRouteMatcherCompiler: createTestTenantRouteMatcherCompiler()
     }
   };
   const tenantDirectoryResolver = new TenantDirectoryResolver(kernelContext);
@@ -2139,9 +2139,9 @@ test(`tenant route matcher compiler use case loads the dedicated adapter and res
   const resolver = new TenantRouteMatcherCompiler({
     config: {
       _adapters: {
-        tenantRouteMatcherCompiler: require.resolve(`@adapter/inbound/tenant-route-matcher-compiler/default-routing-v1`)
+        projectRouteMatcherCompiler: require.resolve(`@adapter/inbound/tenant-route-matcher-compiler/default-routing-v1`)
       },
-      tenantRouteMatcherCompiler: {
+      projectRouteMatcherCompiler: {
         adapter: `default-routing-v1`
       }
     }
@@ -2519,7 +2519,7 @@ test(`tenant directory resolver asks main to reload changed tenants and stop rem
           tenantsPath: `/tmp/tenancy-resolver-sync`,
           scanIntervalMs: 300000
         },
-        tenantRouteMatcherCompiler: {
+        projectRouteMatcherCompiler: {
           adapter: `default-routing-v1`
         },
         watchdogOrchestrator: {
@@ -2547,7 +2547,7 @@ test(`tenant directory resolver asks main to reload changed tenants and stop rem
             return 0;
           }
         },
-        tenantRouteMatcherCompiler: createTestTenantRouteMatcherCompiler(),
+        projectRouteMatcherCompiler: createTestTenantRouteMatcherCompiler(),
         rpcEndpoint: {
           async ask(payload) {
             asks.push(payload);
@@ -2621,7 +2621,7 @@ test(`tenant directory resolver proactively ensures active tenant transports and
           scanIntervalMs: 300000,
           spawnTenantAppAfterScan: true
         },
-        tenantRouteMatcherCompiler: {
+        projectRouteMatcherCompiler: {
           adapter: `default-routing-v1`
         },
         processForkRuntime: {
@@ -2646,7 +2646,7 @@ test(`tenant directory resolver proactively ensures active tenant transports and
             return 0;
           }
         },
-        tenantRouteMatcherCompiler: createTestTenantRouteMatcherCompiler(),
+        projectRouteMatcherCompiler: createTestTenantRouteMatcherCompiler(),
         rpcEndpoint: {
           async ask(payload) {
             asks.push(payload);
@@ -2736,7 +2736,7 @@ test(`isolated runtime action cache reloads an action module when the source fil
 
   try {
     const firstResponse = await handleIsolatedActionRequest({
-      tenantRoute: {
+      projectRoute: {
         action: `actions/hello.js`
       },
       requestData: { url: `www.example.com/hello` },
@@ -2757,7 +2757,7 @@ test(`isolated runtime action cache reloads an action module when the source fil
     fs.utimesSync(actionPath, refreshedAt, refreshedAt);
 
     const secondResponse = await handleIsolatedActionRequest({
-      tenantRoute: {
+      projectRoute: {
         action: `actions/hello.js`
       },
       requestData: { url: `www.example.com/hello` },
@@ -2786,7 +2786,7 @@ test(`mid queue stage returns 503 with Retry-After when the action queue is satu
     headers: {}
   };
   const middlewareContext = {
-    tenantRoute: { origin: { hostname: `tenant.test` }, target: { run: { resource: `actions/hello.js`, action: `index` } } },
+    projectRoute: { origin: { hostname: `tenant.test` }, target: { run: { resource: `actions/hello.js`, action: `index` } } },
     middlewareStackRuntimeConfig: {
       queue: {
         actionMaxConcurrent: 5,
@@ -2832,7 +2832,7 @@ test(`mid queue stage returns 504 with Retry-After when action queue wait times 
     headers: {}
   };
   const middlewareContext = {
-    tenantRoute: { origin: { hostname: `tenant.test` }, target: { run: { resource: `actions/hello.js`, action: `index` } } },
+    projectRoute: { origin: { hostname: `tenant.test` }, target: { run: { resource: `actions/hello.js`, action: `index` } } },
     middlewareStackRuntimeConfig: {
       queue: {
         actionMaxConcurrent: 5,
@@ -2873,7 +2873,7 @@ test(`mid queue stage returns 504 with Retry-After when action queue wait times 
 test(`mid queue stage scopes action concurrency by resolved app identity`, async () => {
   const requestedQueueLabels = [];
   const middlewareContext = {
-    tenantRoute: {
+    projectRoute: {
       origin: {
         hostname: `tenant.test`,
         tenantId: `aaaaaaaaaaaa`,
@@ -2908,7 +2908,7 @@ test(`mid queue stage scopes action concurrency by resolved app identity`, async
 test(`mid queue stage includes the app prefix when only path routing metadata is available`, async () => {
   const requestedQueueLabels = [];
   const middlewareContext = {
-    tenantRoute: {
+    projectRoute: {
       origin: {
         hostname: `tenant.test`,
         appName: `app2`,
@@ -2951,7 +2951,7 @@ test(`static asset serve stage returns a diagnostic static-asset miss message in
       headers: {}
     };
     const middlewareContext = {
-      tenantRoute: {
+      projectRoute: {
         host: `tenant.test`,
         cache: `no-cache`,
         isStaticAsset() {
@@ -3031,7 +3031,7 @@ test(`uWS handler resolves route once and writes the flow response once`, async 
     req,
     res,
     requestData: null,
-    tenantRoute: null,
+    projectRoute: null,
     responseData: { status: 200, headers: {}, body: `ok` },
     hooks: {
       REQUEST: {
@@ -3063,7 +3063,7 @@ test(`uWS handler resolves route once and writes the flow response once`, async 
   executionContext.directorHelper = {
     async resolveRoute() {
       await executionContext.run(`get-router.before`);
-      executionContext.tenantRoute = {
+      executionContext.projectRoute = {
         methodsAvailable: [`GET`],
         methods: [`GET`],
         contentTypes: null,
@@ -3124,7 +3124,7 @@ test(`uWS handler canonicalizes request data from x-forwarded headers and preser
     res,
     ip: `10.0.0.5`,
     requestData: null,
-    tenantRoute: null,
+    projectRoute: null,
     responseData: { status: 200, headers: {}, body: `ok` },
     hooks: {
       REQUEST: {
@@ -3153,7 +3153,7 @@ test(`uWS handler canonicalizes request data from x-forwarded headers and preser
   };
   executionContext.directorHelper = {
     async resolveRoute() {
-      executionContext.tenantRoute = {
+      executionContext.projectRoute = {
         methodsAvailable: [`GET`],
         methods: [`GET`],
         contentTypes: null,
@@ -3222,7 +3222,7 @@ test(`uWS handler rejects requests missing required proxied headers with 400`, a
     req,
     res,
     requestData: null,
-    tenantRoute: null,
+    projectRoute: null,
     responseData: { status: 200, headers: {}, body: null },
     hooks: {
       REQUEST: {
@@ -3288,7 +3288,7 @@ test(`uWS handler rejects methods outside the route allowlist with 405 and Allow
     req,
     res,
     requestData: null,
-    tenantRoute: null,
+    projectRoute: null,
     responseData: { status: 200, headers: {}, body: null },
     hooks: {
       REQUEST: {
@@ -3316,7 +3316,7 @@ test(`uWS handler rejects methods outside the route allowlist with 405 and Allow
   };
   executionContext.directorHelper = {
     async resolveRoute() {
-      executionContext.tenantRoute = {
+      executionContext.projectRoute = {
         methodsAvailable: [`GET`, `POST`],
         methods: [`GET`],
         contentTypes: null,
@@ -3381,7 +3381,7 @@ test(`uWS handler writes a diagnostic body-read validation message in non-produc
       req,
       res,
       requestData: null,
-      tenantRoute: null,
+      projectRoute: null,
       responseData: { status: 200, headers: {}, body: null },
       hooks: {
         REQUEST: {
@@ -3415,7 +3415,7 @@ test(`uWS handler writes a diagnostic body-read validation message in non-produc
     };
     executionContext.directorHelper = {
       async resolveRoute() {
-        executionContext.tenantRoute = {
+        executionContext.projectRoute = {
           methodsAvailable: [`POST`],
           methods: [`POST`],
           contentTypes: [`application/json`],
@@ -3451,7 +3451,7 @@ test(`uWS handler writes a diagnostic body-read validation message in non-produc
 test(`request latency classifier applies profile-specific thresholds`, () => {
   const classification = classifyRequestLatency({
     durationMs: 180,
-    tenantRoute: {
+    projectRoute: {
       isStaticAsset() {
         return false;
       }
@@ -3490,7 +3490,7 @@ test(`execution context finalization stores latency profile and class in meta`, 
     finishCallbacks: [],
     metaFinalized: false,
     meta,
-    tenantRoute: {
+    projectRoute: {
       isStaticAsset() {
         return false;
       }
@@ -3578,7 +3578,7 @@ test(`uWS handler records body-read and response-write metadata for successful J
     res,
     meta,
     requestData: null,
-    tenantRoute: null,
+    projectRoute: null,
     responseData: { status: 200, headers: {}, body: null },
     hooks: {
       REQUEST: {
@@ -3612,7 +3612,7 @@ test(`uWS handler records body-read and response-write metadata for successful J
   };
   executionContext.directorHelper = {
     async resolveRoute() {
-      executionContext.tenantRoute = {
+      executionContext.projectRoute = {
         methodsAvailable: [`POST`],
         methods: [`POST`],
         contentTypes: [`application/json`],
@@ -3684,7 +3684,7 @@ test(`uWS handler primes request body capture before async route resolution for 
     res,
     meta: new ExecutionMetaData(),
     requestData: null,
-    tenantRoute: null,
+    projectRoute: null,
     responseData: { status: 200, headers: {}, body: null },
     hooks: {
       REQUEST: {
@@ -3721,7 +3721,7 @@ test(`uWS handler primes request body capture before async route resolution for 
     async resolveRoute() {
       routeResolveStarted = true;
       await new Promise((resolve) => setImmediate(resolve));
-      executionContext.tenantRoute = {
+      executionContext.projectRoute = {
         methodsAvailable: [`POST`],
         methods: [`POST`],
         contentTypes: [`application/json`],
@@ -3782,7 +3782,7 @@ test(`uWS handler writes a non-production internal-routing message when route re
       req,
       res,
       requestData: null,
-      tenantRoute: null,
+      projectRoute: null,
       responseData: { status: 200, headers: {}, body: null },
       hooks: {
         REQUEST: {
@@ -3855,7 +3855,7 @@ test(`uWS handler rejects methods outside the host allowlist before route checks
     req,
     res,
     requestData: null,
-    tenantRoute: null,
+    projectRoute: null,
     responseData: { status: 200, headers: {}, body: null },
     hooks: {
       REQUEST: {
@@ -3883,7 +3883,7 @@ test(`uWS handler rejects methods outside the host allowlist before route checks
   };
   executionContext.directorHelper = {
     async resolveRoute() {
-      executionContext.tenantRoute = {
+      executionContext.projectRoute = {
         methodsAvailable: [`GET`, `POST`],
         methods: [`GET`, `POST`, `PATCH`],
         contentTypes: null,
@@ -3940,7 +3940,7 @@ test(`uWS handler rejects disallowed content types before body parsing`, async (
     req,
     res,
     requestData: null,
-    tenantRoute: null,
+    projectRoute: null,
     responseData: { status: 200, headers: {}, body: null },
     hooks: {
       REQUEST: {
@@ -3968,7 +3968,7 @@ test(`uWS handler rejects disallowed content types before body parsing`, async (
   };
   executionContext.directorHelper = {
     async resolveRoute() {
-      executionContext.tenantRoute = {
+      executionContext.projectRoute = {
         methodsAvailable: [`POST`],
         methods: [`POST`],
         contentTypes: [`application/json`],
@@ -4183,7 +4183,7 @@ test(`rpc endpoint askDetailed returns merged action metadata and correlation id
     target: `e_app_aaaaaaaaaaaa_bbbbbbbbbbbb`,
     question: `tenantAction`,
     data: {
-      tenantRoute: {
+      projectRoute: {
         action: `actions/example.js`
       }
     },
@@ -4490,7 +4490,7 @@ test(`tenant report writer aggregates per-tenant request metrics and flushes rep
     });
 
     writer.observeRequest({
-      tenantRoute: {
+      projectRoute: {
         origin: {
           hostname: `www.example.com`,
           tenantId: `aaaaaaaaaaaa`,
@@ -4513,7 +4513,7 @@ test(`tenant report writer aggregates per-tenant request metrics and flushes rep
     });
 
     writer.observeRequest({
-      tenantRoute: {
+      projectRoute: {
         origin: {
           hostname: `www.example.com`,
           tenantId: `aaaaaaaaaaaa`,
@@ -4571,7 +4571,7 @@ test(`tenant report writer derives report path from app scope contract`, async (
     });
 
     writer.observeRequest({
-      tenantRoute: {
+      projectRoute: {
         origin: {
           hostname: `www.example.com`,
           tenantId: `aaaaaaaaaaaa`,
@@ -4672,7 +4672,7 @@ test(`runtime-reporter updates tenant report on TRANSPORT.REQUEST.END and flushe
 
     await runtimeReporter.register.call(runtimeReporter, executor);
     listeners.get(hookIds.REQUEST.END)({
-      tenantRoute: {
+      projectRoute: {
         origin: {
           hostname: `www.example.com`,
           tenantId: `aaaaaaaaaaaa`,

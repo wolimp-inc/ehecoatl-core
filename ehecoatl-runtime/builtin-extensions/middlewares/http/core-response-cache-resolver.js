@@ -12,20 +12,20 @@ const { createResponseCacheInternalRedirect } = require(`./_static-stream-suppor
 
 module.exports = async function runMiddleware(middlewareContext, next) {
   const forward = createFlowController(next);
-  const { tenantRoute, services, requestData } = middlewareContext;
+  const { projectRoute, services, requestData } = middlewareContext;
   const { cache } = services;
   const requestUrl = String(requestData?.url ?? ``);
   const requestId = middlewareContext.meta?.requestId ?? null;
   const traceMeta = {
     requestId,
     url: requestUrl || null,
-    route: tenantRoute?.pointsTo ?? null
+    route: projectRoute?.pointsTo ?? null
   };
 
-  if (tenantRoute.isStaticAsset()) {
+  if (projectRoute.isStaticAsset()) {
     return forward.continue();
   }
-  if (!isExplicitCacheRoute(tenantRoute)) {
+  if (!isExplicitCacheRoute(projectRoute)) {
     return forward.continue();
   }
 
@@ -133,8 +133,8 @@ function askDirector(middlewareContext, question, data) {
   throw new Error(`middleware-context requires askDirector for cache queue coordination`);
 }
 
-function resolveRouteCachePolicy(tenantRoute) {
-  return normalizeRouteCachePolicy(tenantRoute?.cache);
+function resolveRouteCachePolicy(projectRoute) {
+  return normalizeRouteCachePolicy(projectRoute?.cache);
 }
 
 async function materializeResponseCache(middlewareContext) {
@@ -143,7 +143,7 @@ async function materializeResponseCache(middlewareContext) {
   const traceMeta = {
     requestId,
     url: requestUrl || null,
-    route: middlewareContext.tenantRoute?.pointsTo ?? null
+    route: middlewareContext.projectRoute?.pointsTo ?? null
   };
   if (!isCacheableRoute(middlewareContext)) {
     logCacheTrace(`materialize-skip`, {
@@ -177,7 +177,7 @@ async function materializeResponseCache(middlewareContext) {
 
   const diskLimitResult = await enforceTenantDiskLimit({
     storage: middlewareContext.services.storage,
-    tenantRoute: middlewareContext.tenantRoute,
+    projectRoute: middlewareContext.projectRoute,
     middlewareStackRuntimeConfig: middlewareContext.middlewareStackRuntimeConfig,
     pendingWriteBytes,
     contextLabel: `response_cache_disk_limit`
@@ -195,7 +195,7 @@ async function materializeResponseCache(middlewareContext) {
     middlewareContext.middlewareStackRuntimeConfig?.responseCacheAsyncTimeoutMs
       ?? 1500
   );
-  const cachePolicy = resolveRouteCachePolicy(middlewareContext.tenantRoute);
+  const cachePolicy = resolveRouteCachePolicy(middlewareContext.projectRoute);
   const cacheTtl = clampRouteCacheTtl(
     cachePolicy,
     middlewareContext.middlewareStackRuntimeConfig?.maxResponseCacheTTL
@@ -240,11 +240,11 @@ async function materializeResponseCache(middlewareContext) {
 }
 
 function isCacheableRoute(middlewareContext) {
-  const { tenantRoute, requestData } = middlewareContext;
-  const cachePolicy = resolveRouteCachePolicy(tenantRoute);
-  if (!tenantRoute?.target?.run?.action) return false;
+  const { projectRoute, requestData } = middlewareContext;
+  const cachePolicy = resolveRouteCachePolicy(projectRoute);
+  if (!projectRoute?.target?.run?.action) return false;
   if (cachePolicy.internalTtlMs == null) return false;
-  if (tenantRoute.session) return false;
+  if (projectRoute.session) return false;
   if ([`GET`, `HEAD`].includes(requestData?.method ?? `GET`) === false) return false;
   if (middlewareContext.getStatus() && middlewareContext.getStatus() !== 200) return false;
   if (middlewareContext.getCookies()) return false;
@@ -263,8 +263,8 @@ function serializeCacheBody(body) {
 }
 
 function resolveCacheArtifactPath(middlewareContext) {
-  const { tenantRoute, requestData } = middlewareContext;
-  const basePath = tenantRoute.getCacheFilePath(requestData.url);
+  const { projectRoute, requestData } = middlewareContext;
+  const basePath = projectRoute.getCacheFilePath(requestData.url);
   if (!basePath) return null;
 
   const headerContentType = findHeader(middlewareContext.getHeaders(), `content-type`);
@@ -306,8 +306,8 @@ function resolveBodyBytes(body, headers = {}) {
   return Buffer.byteLength(String(body));
 }
 
-function isExplicitCacheRoute(tenantRoute) {
-  return resolveRouteCachePolicy(tenantRoute).internalTtlMs != null;
+function isExplicitCacheRoute(projectRoute) {
+  return resolveRouteCachePolicy(projectRoute).internalTtlMs != null;
 }
 
 async function releaseQueueTask(middlewareContext, {

@@ -19,7 +19,7 @@ That flow installs the runtime under `/opt/ehecoatl`, writes grouped JSON config
 - `g_directorScope`
 - `u_supervisor`
 
-Tenant and app identities are created later when those scopes are deployed.
+Project and app identities are created later when those scopes are deployed.
 
 ## Start And Inspect The Service
 
@@ -29,19 +29,19 @@ ehecoatl core status
 ehecoatl core log
 ```
 
-## Deploy A Tenant And App
+## Deploy A Project And App
 
-Create a tenant:
+Create a project:
 
 ```bash
-ehecoatl core deploy tenant "@example.test" -t "test"
+ehecoatl core deploy project "@example.test" -p "test"
 ```
 
-The packaged `test` tenant kit includes the default `www` app as an embedded app source, so no separate `test` app kit deploy is needed.
+The packaged `test` project kit includes the default `www` app as an embedded app source, so no separate `test` app kit deploy is needed.
 
-Tenant deploy finishes by triggering `ehecoatl core rescan tenants`, so the running `director` process picks up the new topology immediately.
+Project deploy finishes by triggering `ehecoatl core rescan projects`, so the running `director` process picks up the new topology immediately. Legacy `core deploy tenant` and `core rescan tenants` aliases remain accepted for old automation.
 
-Kit sources may be folders or `.zip` archives. A zip tenant kit such as `test.zip` must place kit files directly at the archive root.
+Kit sources may be folders or `.zip` archives. A zip project kit such as `test.zip` must place kit files directly at the archive root.
 
 ## Human Logins
 
@@ -57,13 +57,13 @@ You can attach more than one scope:
 ehecoatl core generate login "editor" --scope super --scope "@example.test"
 ```
 
-Managed logins still land in `/home/<username>` as their real shell home. The command also creates a scoped workspace at `~/ehecoatl` with symlinks into the service, tenant, and app roots that the assigned scopes allow.
+Managed logins still land in `/home/<username>` as their real shell home. The command also creates a scoped workspace at `~/ehecoatl` with symlinks into the service, project, and app roots that the assigned scopes allow.
 
-Login scopes are limited to `super`, `"@<domain>"`, and `"@<tenant_id>"`. App-specific login generation is intentionally not exposed; app commands can be reached from tenant-granted workspaces after changing into an app root. Tenant commands also support an explicit `"@<domain>"` override immediately after `tenant` when you want to target a tenant without relying on the current directory.
+Login scopes support `super`, `"@<domain>"`, and `"@<project_id>"`; legacy tenant ids remain accepted. App-specific login generation is intentionally not exposed; app commands can be reached from project-granted workspaces after changing into an app root. Project commands also support an explicit `"@<domain>"` override immediately after `project` when you want to target a project without relying on the current directory.
 
 ## Remove The Runtime
 
-To remove the runtime while preserving tenant data:
+To remove the runtime while preserving project and legacy tenant data:
 
 ```bash
 sudo bash ehecoatl-core.sh --uninstall

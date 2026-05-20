@@ -86,7 +86,7 @@ WsHubManagerPort.receiveMessageAdapter = async function receiveMessageAdapter({
   }
 
   const stackResult = await middlewareStackRuntime.runWsMessageMiddlewareStack({
-    tenantRoute: routeSnapshot,
+    projectRoute: routeSnapshot,
     sessionData: cloneJsonValue(client?.metadata?.sessionData ?? {}),
     middlewareStackRuntimeConfig: middlewareStackRuntime?.config ?? null,
     services: {

@@ -57,9 +57,9 @@ Holds configuration for adapter-backed runtime components and services, includin
 
 - `rpcRuntime`
 - `ingressRuntime`
-- `tenantDirectoryResolver`
-- `tenantRegistryResolver`
-- `tenantRouteMatcherCompiler`
+- `projectDirectoryResolver`
+- `projectRegistryResolver`
+- `projectRouteMatcherCompiler`
 - `requestUriRoutingRuntime`
 - `middlewareStackRuntime`
 - `processForkRuntime`
@@ -71,7 +71,7 @@ Holds configuration for adapter-backed runtime components and services, includin
 
 ### `adapters.requestUriRoutingRuntime`
 
-Controls route matching against the active tenancy registry, default app resolution, and route match caching behavior.
+Controls route matching against the active project registry, default app resolution, and route match caching behavior.
 
 ### `adapters.middlewareStackRuntime`
 
@@ -81,7 +81,7 @@ The `queue` subsection currently controls the app action queue. `actionMaxConcur
 
 The current runtime does not treat `perTenantMaxConcurrent` as a global tenant-wide cap across every request type. Static assets usually complete in `core-static-asset-serve` before `core-queue`, so `staticMaxConcurrent` and `staticWaitTimeoutMs` are configuration placeholders in this snapshot rather than active static-asset queue controls.
 
-The `diskLimit.trackedPaths` entries are relative to the resolved app route root, exposed as `tenantRoute.folders.rootFolder`. The default tracked paths follow the app-local runtime support layout: `.ehecoatl/.cache`, `.ehecoatl/log`, and `.ehecoatl/.spool`. The response-cache materializer writes cache artifacts under `.ehecoatl/.cache`, so older shorthand names such as `.cache` do not cover the active cache folder.
+The `diskLimit.trackedPaths` entries are relative to the resolved app route root, exposed as `projectRoute.folders.rootFolder`. The default tracked paths follow the app-local runtime support layout: `.ehecoatl/.cache`, `.ehecoatl/log`, and `.ehecoatl/.spool`. The response-cache materializer writes cache artifacts under `.ehecoatl/.cache`, so older shorthand names such as `.cache` do not cover the active cache folder.
 
 The action queue wait path uses `actionWaitTimeoutMs`, then `waitTimeoutMs`, then `1000`. `retryAfterMs` is used to build the `Retry-After` header on action queue overload responses.
 
@@ -129,9 +129,9 @@ When a supervised child exceeds `cgroups.memoryMaxMb`, the kernel cgroup memory 
 
 When a supervised child exceeds `cgroups.cpuMaxPercent`, the kernel throttles the process. CPU overuse does not kill the process by itself.
 
-### `adapters.tenantDirectoryResolver`
+### `adapters.projectDirectoryResolver`
 
-Controls tenancy scan roots, scan cadence, registry refresh behavior, and forced rescan question names.
+Controls project scan roots, scan cadence, registry refresh behavior, and forced rescan question names. Legacy `adapters.tenantDirectoryResolver`, `tenantRegistryResolver`, and `tenantRouteMatcherCompiler` keys are still accepted as compatibility inputs.
 
 ### `adapters.sharedCacheService`
 
@@ -142,4 +142,4 @@ Controls the shared-cache backend and operation-level failure policy.
 - The seccomp boundary for protected child processes blocks `fork`, `vfork`, `execve`, and `execveat`.
 - Thread creation required by the Node.js runtime remains allowed.
 - Seccomp and process identity are only part of the runtime security model; the bootstrap load policy and supported weak-load exceptions are documented in [Architecture](../core-concepts/architecture.md#load-policy) and [Runtime Logic Overview](../logic.md#load-policy).
-- Direct CLI-triggered tenant rescans are handled by the `director` process through its local RPC socket.
+- Direct CLI-triggered project rescans are handled by the `director` process through its local RPC socket.

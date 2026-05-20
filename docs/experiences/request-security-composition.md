@@ -17,12 +17,12 @@ This experience gives the runtime a composable request-security surface through 
 ## Key Files
 
 - [`ehecoatl-runtime/_core/runtimes/middleware-stack-runtime/middleware-stack-runtime.js`](../../ehecoatl-runtime/_core/runtimes/middleware-stack-runtime/middleware-stack-runtime.js)
-- [`ehecoatl-runtime/builtin-extensions/tenant-kits/test/shared/app/http/middlewares/session.js`](../../ehecoatl-runtime/builtin-extensions/tenant-kits/test/shared/app/http/middlewares/session.js)
-- [`ehecoatl-runtime/builtin-extensions/tenant-kits/test/shared/app/http/middlewares/auth.js`](../../ehecoatl-runtime/builtin-extensions/tenant-kits/test/shared/app/http/middlewares/auth.js)
+- [`ehecoatl-runtime/builtin-extensions/project-kits/test/shared/app/http/middlewares/session.js`](../../ehecoatl-runtime/builtin-extensions/project-kits/test/shared/app/http/middlewares/session.js)
+- [`ehecoatl-runtime/builtin-extensions/project-kits/test/shared/app/http/middlewares/auth.js`](../../ehecoatl-runtime/builtin-extensions/project-kits/test/shared/app/http/middlewares/auth.js)
 - [`ehecoatl-runtime/builtin-extensions/app-kits/test/app/http/actions/auth-login.js`](../../ehecoatl-runtime/builtin-extensions/app-kits/test/app/http/actions/auth-login.js)
 
 ## Related Docs
 
 - [Middleware and Route Policy Composition](middleware-and-route-policy-composition.md)
-- [Tenant Kits](tenant-kits.md)
+- [Project Kits](project-kits.md)
 - [Request Lifecycle](../core-concepts/request-lifecycle.md)

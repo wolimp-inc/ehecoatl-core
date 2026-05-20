@@ -20,16 +20,17 @@ Creates a managed Linux login and a scoped workspace at /home/<username>/ehecoat
 Options:
   --password <password>   Set the login password immediately.
   --scope <selector>      Add one scope selector. Repeat to grant multiple scopes.
-                         Accepted selectors: super, @<domain>, @<tenant_id>,
-                         <appname>@<domain>, <appname>@<tenant_id>.
+                         Accepted selectors: super, @<domain>, @<project_id>,
+                         <appname>@<domain>, <appname>@<project_id>.
+                         Legacy tenant ids remain accepted.
   -h, --help              Show this help message.
 
 Scope selectors:
   super                   Grant supervision workspace access.
-  @example.test           Grant access to the tenant resolved by domain.
-  @<tenant_id>            Grant access to the tenant resolved by opaque id.
-  www@example.test        Grant access to one app resolved by tenant domain.
-  www@<tenant_id>         Grant access to one app resolved by tenant id.
+  @example.test           Grant access to the project resolved by domain.
+  @<project_id>           Grant access to the project resolved by opaque id.
+  www@example.test        Grant access to one app resolved by project domain.
+  www@<project_id>        Grant access to one app resolved by project id.
 
 Examples:
   ehecoatl core generate login operator --scope super
@@ -84,17 +85,20 @@ done
 }
 
 WORKSPACE_HOME="/home/$USERNAME/ehecoatl"
-RESOLVED_PLAN_JSON="$(node - "$WORKSPACE_PLANNER" "$TENANTS_BASE" "$WORKSPACE_HOME" "$(printf '%s\n' "${SCOPE_SELECTORS[@]}")" <<'EOF'
+RESOLVED_PLAN_JSON="$(node - "$WORKSPACE_PLANNER" "$PROJECTS_BASE" "$LEGACY_TENANTS_BASE" "$WORKSPACE_HOME" "$(printf '%s\n' "${SCOPE_SELECTORS[@]}")" <<'EOF'
 try {
   const planner = require(process.argv[2]);
-  const tenantsBase = process.argv[3];
-  const workspaceHome = process.argv[4];
-  const selectors = process.argv[5]
-    ? process.argv[5].split(`\n`).map((entry) => entry.trim()).filter(Boolean)
+  const projectsBase = process.argv[3];
+  const legacyTenantsBase = process.argv[4];
+  const workspaceHome = process.argv[5];
+  const selectors = process.argv[6]
+    ? process.argv[6].split(`\n`).map((entry) => entry.trim()).filter(Boolean)
     : [];
 
   const plan = planner.buildManagedLoginWorkspacePlan({
-    tenantsBase,
+    projectsBase,
+    tenantsBase: legacyTenantsBase,
+    legacyTenantsBase,
     workspaceHome,
     scopeSelectors: selectors
   });

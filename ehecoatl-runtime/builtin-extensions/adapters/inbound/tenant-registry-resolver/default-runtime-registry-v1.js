@@ -10,6 +10,7 @@ const TenantRegistryResolverPort = require(`@/_core/_ports/inbound/tenant-regist
 TenantRegistryResolverPort.persistRegistryAdapter = async function persistRegistryAdapter({
   storage,
   registry,
+  projectsPath,
   tenantsPath,
   registryPath,
   snapshotMetadata = null
@@ -34,7 +35,7 @@ TenantRegistryResolverPort.persistRegistryAdapter = async function persistRegist
   const appsByTenantId = groupAppsByTenantId(hosts);
 
   for (const tenantRecord of domains) {
-    const tenantFolderName = `tenant_${tenantRecord.tenantId}`;
+    const tenantFolderName = `project_${tenantRecord.projectId ?? tenantRecord.tenantId}`;
     const tenantFolder = path.join(tempRegistryPath, tenantFolderName);
     const tenantApps = appsByTenantId.get(tenantRecord.tenantId) ?? [];
 
@@ -43,6 +44,7 @@ TenantRegistryResolverPort.persistRegistryAdapter = async function persistRegist
       buildTenantSnapshotPath(tenantFolder, tenantRecord.tenantId),
       JSON.stringify(buildTenantSnapshot({
         tenantRecord,
+        projectsPath,
         tenantsPath,
         tenantApps,
         snapshotMetadata,
@@ -61,6 +63,7 @@ TenantRegistryResolverPort.persistRegistryAdapter = async function persistRegist
         JSON.stringify(buildAppSnapshot({
           tenantRecord,
           appRecord,
+          projectsPath,
           tenantsPath,
           snapshotMetadata,
           persistedAppSnapshot: persistedSnapshotState.appsByTenantAndAppId.get(buildAppSnapshotKey({
@@ -127,6 +130,7 @@ function groupAppsByTenantId(appRecords) {
 
 function buildTenantSnapshot({
   tenantRecord,
+  projectsPath,
   tenantsPath,
   tenantApps,
   snapshotMetadata,
@@ -142,6 +146,9 @@ function buildTenantSnapshot({
   return {
     ...createdMetadata,
     ehecoatlVersion: tenantRecord.ehecoatlVersion ?? createdMetadata.ehecoatlVersion,
+    projectId: tenantRecord.projectId ?? tenantRecord.tenantId,
+    projectDomain: tenantRecord.projectDomain ?? tenantRecord.domain,
+    projectRoot: tenantRecord.projectRoot ?? tenantRecord.rootFolder ?? null,
     tenantId: tenantRecord.tenantId,
     tenantDomain: tenantRecord.domain,
     certbotEmail: tenantRecord.certbotEmail ?? null,
@@ -153,7 +160,9 @@ function buildTenantSnapshot({
       letsEncryptTriggeredDomains: {}
     },
     source: {
+      projectsRoot: projectsPath ?? tenantsPath,
       tenantsRoot: tenantsPath,
+      projectFolder: tenantRecord.projectRoot ?? tenantRecord.rootFolder ?? null,
       tenantFolder: tenantRecord.rootFolder ?? null
     }
   };
@@ -162,6 +171,7 @@ function buildTenantSnapshot({
 function buildAppSnapshot({
   tenantRecord,
   appRecord,
+  projectsPath,
   tenantsPath,
   snapshotMetadata,
   persistedAppSnapshot = null,
@@ -194,8 +204,11 @@ function buildAppSnapshot({
   return {
     ...createdMetadata,
     ...persistedConfig,
+    projectId: tenantRecord.projectId ?? tenantRecord.tenantId,
+    projectDomain: tenantRecord.projectDomain ?? tenantRecord.domain,
     tenantDomain: tenantRecord.domain,
     source: {
+      projectsRoot: projectsPath ?? tenantsPath,
       tenantsRoot: tenantsPath,
       appFolder: rootFolder ?? null,
       actionsRootFolder: actionsRootFolder ?? null,
@@ -253,10 +266,10 @@ async function loadPersistedSnapshotState(registryPath) {
   for (const tenantEntry of tenantEntries) {
     if (!tenantEntry?.isDirectory?.()) continue;
     const tenantFolderName = String(tenantEntry.name ?? ``).trim();
-    if (!/^tenant_[a-z0-9]{12}$/i.test(tenantFolderName)) continue;
+    if (!/^(?:project|tenant)_[a-z0-9]{12}$/i.test(tenantFolderName)) continue;
 
     const tenantFolder = path.join(registryPath, tenantFolderName);
-    const tenantIdFromFolder = tenantFolderName.replace(/^tenant_/i, ``);
+    const tenantIdFromFolder = tenantFolderName.replace(/^(?:project|tenant)_/i, ``);
     const tenantSnapshot = await readJsonOrNull(buildTenantSnapshotPath(tenantFolder, tenantIdFromFolder));
     const tenantId = String(tenantSnapshot?.tenantId ?? ``).trim();
     if (tenantSnapshot && tenantId) {
@@ -334,5 +347,5 @@ async function preserveNonTenantEntries({
 }
 
 function isTenantRegistryEntry(entryName) {
-  return /^tenant_[a-z0-9]+$/i.test(String(entryName ?? ``).trim());
+  return /^(?:project|tenant)_[a-z0-9]+$/i.test(String(entryName ?? ``).trim());
 }

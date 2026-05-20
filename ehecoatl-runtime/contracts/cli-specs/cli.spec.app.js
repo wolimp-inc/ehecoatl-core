@@ -15,7 +15,7 @@ const cloneCommand = (commandName, overrides = {}) => ({
 module.exports = {
   ABOUT: {
     label: `App CLI command spec`,
-    description: `App-scoped command surface isolated to one current app environment, with an optional explicit <app_name>@<domain>|<tenant_id> target override`,
+    description: `App-scoped command surface isolated to one current app environment, with an optional explicit <app_name>@<domain>|<project_id> target override; legacy tenant ids remain accepted`,
     contractClass: `SERVICE.CLI.SPEC`
   },
   prefix: `app`,

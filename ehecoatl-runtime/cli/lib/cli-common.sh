@@ -9,7 +9,10 @@ cli_init() {
   source "$CLI_LIB_DIR/runtime-policy.sh"
   policy_init "$CLI_BASE_DIR/ehecoatl.sh"
 
-  TENANTS_BASE="$(policy_value 'paths.tenantsBase')"
+  PROJECTS_BASE="$(policy_value 'paths.projectsBase' 2>/dev/null || true)"
+  LEGACY_TENANTS_BASE="$(policy_value 'paths.tenantsBase')"
+  TENANTS_BASE="${PROJECTS_BASE:-$LEGACY_TENANTS_BASE}"
+  export EHECOATL_LEGACY_TENANTS_BASE="$LEGACY_TENANTS_BASE"
   TENANT_LAYOUT_CLI="$CLI_LIB_DIR/tenant-layout-cli.js"
   INTERNAL_REGISTRY_DIR="$(node -e 'const utils = require(process.argv[1]); process.stdout.write(utils.getInternalScopePath(`RUNTIME`, `registry`) ?? ``);' "$RUNTIME_DIR/contracts/utils.js")"
   MANAGED_LOGINS_DIR="$(node -e 'const utils = require(process.argv[1]); process.stdout.write(utils.getSupervisionScopePath(`RUNTIME`, `managedLogins`) ?? ``);' "$RUNTIME_DIR/contracts/utils.js")"
@@ -43,9 +46,9 @@ resolve_scope_by_path_json() {
   node "$TENANT_LAYOUT_CLI" resolve-scope-by-path "$TENANTS_BASE" "$target_path"
 }
 
-resolve_tenant_scope_target_json() {
+resolve_project_scope_target_json() {
   local target_json kind explicit_target explicit_domain tenant_id required_group
-  explicit_target="${EHECOATL_CLI_EXPLICIT_TENANT_TARGET:-}"
+  explicit_target="${EHECOATL_CLI_EXPLICIT_PROJECT_TARGET:-${EHECOATL_CLI_EXPLICIT_TENANT_TARGET:-}}"
 
   if [ -n "$explicit_target" ]; then
     case "$explicit_target" in
@@ -53,32 +56,32 @@ resolve_tenant_scope_target_json() {
         explicit_domain="${explicit_target#@}"
         ;;
       *)
-        echo "Explicit tenant target must use the shape @<domain>." >&2
+        echo "Explicit project target must use the shape @<domain>." >&2
         return 1
         ;;
     esac
 
     [ -n "$explicit_domain" ] || {
-      echo "Explicit tenant target must use the shape @<domain>." >&2
+      echo "Explicit project target must use the shape @<domain>." >&2
       return 1
     }
 
     target_json="$(node "$TENANT_LAYOUT_CLI" find-tenant-json-by-domain "$TENANTS_BASE" "$explicit_domain")"
     [ -n "$target_json" ] && [ "$target_json" != "null" ] || {
-      echo "No tenant could be found for explicit target: $explicit_target" >&2
+      echo "No project could be found for explicit target: $explicit_target" >&2
       return 1
     }
 
     tenant_id="$(json_field "$target_json" tenantId 2>/dev/null || true)"
     [ -n "$tenant_id" ] || {
-      echo "Unable to resolve tenantId for explicit target: $explicit_target" >&2
+      echo "Unable to resolve projectId for explicit target: $explicit_target" >&2
       return 1
     }
 
     if [ "$(id -u)" -ne 0 ]; then
       required_group="g_${tenant_id}"
       current_user_has_group "$required_group" || {
-        echo "Explicit tenant target $explicit_target requires membership in $required_group." >&2
+        echo "Explicit project target $explicit_target requires membership in $required_group." >&2
         return 1
       }
     fi
@@ -89,17 +92,21 @@ resolve_tenant_scope_target_json() {
 
   target_json="$(resolve_scope_by_path_json)"
   [ -n "$target_json" ] && [ "$target_json" != "null" ] || {
-    echo "No tenant scope could be derived from the current directory: $PWD" >&2
+    echo "No project scope could be derived from the current directory: $PWD" >&2
     return 1
   }
 
   kind="$(json_field "$target_json" kind 2>/dev/null || true)"
-  [ "$kind" = "tenant" ] || {
-    echo "Tenant commands must be run from a tenant scope root or shared tenant path, not from inside an app scope." >&2
+  [ "$kind" = "project" ] || [ "$kind" = "tenant" ] || {
+    echo "Project commands must be run from a project scope root or shared project path, not from inside an app scope." >&2
     return 1
   }
 
   printf '%s' "$target_json"
+}
+
+resolve_tenant_scope_target_json() {
+  resolve_project_scope_target_json
 }
 
 resolve_app_scope_explicit_target_json() {
@@ -112,13 +119,13 @@ resolve_app_scope_explicit_target_json() {
       target_selector="${explicit_target#*@}"
       ;;
     *)
-      echo "Explicit app target must use the shape <app_name>@<domain> or <app_name>@<tenant_id>." >&2
+      echo "Explicit app target must use the shape <app_name>@<domain> or <app_name>@<project_id>." >&2
       return 1
       ;;
   esac
 
   [ -n "$app_name" ] && [ -n "$target_selector" ] || {
-    echo "Explicit app target must use the shape <app_name>@<domain> or <app_name>@<tenant_id>." >&2
+    echo "Explicit app target must use the shape <app_name>@<domain> or <app_name>@<project_id>." >&2
     return 1
   }
 
@@ -136,7 +143,7 @@ resolve_app_scope_explicit_target_json() {
   tenant_id="$(json_field "$target_json" tenantId 2>/dev/null || true)"
   app_id="$(json_field "$target_json" appId 2>/dev/null || true)"
   [ -n "$tenant_id" ] && [ -n "$app_id" ] || {
-    echo "Unable to resolve tenantId/appId for explicit target: $explicit_target" >&2
+    echo "Unable to resolve projectId/appId for explicit target: $explicit_target" >&2
     return 1
   }
 
@@ -193,8 +200,8 @@ describe_cwd_scope() {
     app)
       printf 'app:%s (%s, %s)' "${app_name:-unknown}" "${tenant_domain:-$tenant_id}" "${app_id:-unknown}"
       ;;
-    tenant)
-      printf 'tenant:%s (%s)' "${tenant_domain:-$tenant_id}" "${tenant_id:-unknown}"
+    tenant|project)
+      printf 'project:%s (%s)' "${tenant_domain:-$tenant_id}" "${tenant_id:-unknown}"
       ;;
     *)
       printf 'outside-managed-scopes'
@@ -219,7 +226,7 @@ describe_explicit_app_target() {
   esac
 
   if printf '%s\n' "$target_selector" | grep -Eq '^[a-z0-9]{12}$'; then
-    selector_type='tenant-id'
+    selector_type='project-id'
   else
     selector_type='domain'
   fi
@@ -231,7 +238,7 @@ target_kind() {
   if json_field "$1" appId >/dev/null 2>&1; then
     printf 'app'
   else
-    printf 'tenant'
+    printf 'project'
   fi
 }
 

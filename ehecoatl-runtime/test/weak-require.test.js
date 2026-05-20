@@ -93,7 +93,7 @@ test(`isolated HTTP actions reload changed source without process restart`, asyn
 
   try {
     const firstResponse = await handleIsolatedActionRequest({
-      tenantRoute: {
+      projectRoute: {
         target: {
           run: {
             resource: `hello`,
@@ -116,7 +116,7 @@ test(`isolated HTTP actions reload changed source without process restart`, asyn
     writeModuleAndAdvanceMtime(actionPath, `module.exports = async () => ({ status: 200, body: 'second' });\n`);
 
     const secondResponse = await handleIsolatedActionRequest({
-      tenantRoute: {
+      projectRoute: {
         target: {
           run: {
             resource: `hello`,
@@ -152,7 +152,7 @@ test(`isolated WS actions reload changed source without process restart`, async 
 
   try {
     const firstResponse = await handleIsolatedWsActionRequest({
-      tenantRoute: {
+      projectRoute: {
         folders: {
           wsActionsRootFolder: path.join(tempRoot, `app`, `ws`, `actions`)
         }
@@ -171,7 +171,7 @@ test(`isolated WS actions reload changed source without process restart`, async 
     writeModuleAndAdvanceMtime(actionPath, `module.exports = async () => ({ version: 'second' });\n`);
 
     const secondResponse = await handleIsolatedWsActionRequest({
-      tenantRoute: {
+      projectRoute: {
         folders: {
           wsActionsRootFolder: path.join(tempRoot, `app`, `ws`, `actions`)
         }

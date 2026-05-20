@@ -101,7 +101,7 @@ test(`http handler canonicalizes request data from forwarded proxy headers`, asy
     res,
     ip: `10.0.0.5`,
     requestData: null,
-    tenantRoute: null,
+    projectRoute: null,
     responseData: { status: 200, headers: {}, body: `ok` },
     hooks: {
       REQUEST: {
@@ -130,7 +130,7 @@ test(`http handler canonicalizes request data from forwarded proxy headers`, asy
 
   executionContext.directorHelper = {
     async resolveRoute() {
-      executionContext.tenantRoute = {
+      executionContext.projectRoute = {
         methodsAvailable: [`GET`],
         methods: [`GET`],
         contentTypes: null,
@@ -200,7 +200,7 @@ test(`http handler rejects proxied requests missing required forwarded headers`,
     req,
     res,
     requestData: null,
-    tenantRoute: null,
+    projectRoute: null,
     responseData: { status: 200, headers: {}, body: null },
     hooks: {
       REQUEST: {
@@ -260,7 +260,7 @@ test(`http handler prefixes root-relative redirects from normalized tenant route
     redirectLocation: `/htm/index.htm`,
     domainRoutingMode: `path`,
     appName: `app1`,
-    useTenantRoute: true
+    useProjectRoute: true
   });
 
   await httpHandler.handle(executionContext);
@@ -317,7 +317,7 @@ function createRedirectExecutionContext({
   redirectLocation,
   domainRoutingMode,
   appName,
-  useTenantRoute = false
+  useProjectRoute = false
 }) {
   const req = {
     forEach(callback) {
@@ -344,7 +344,7 @@ function createRedirectExecutionContext({
     req,
     res,
     requestData: null,
-    tenantRoute: null,
+    projectRoute: null,
     responseData: { status: 200, headers: {}, body: null },
     hooks: {
       REQUEST: {
@@ -386,7 +386,7 @@ function createRedirectExecutionContext({
           return true;
         }
       };
-      executionContext.tenantRoute = useTenantRoute
+      executionContext.projectRoute = useProjectRoute
         ? new TenantRoute(routeData)
         : routeData;
     }

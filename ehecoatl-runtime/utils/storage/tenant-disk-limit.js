@@ -10,12 +10,12 @@ const DEFAULT_TRACKED_PATHS = Object.freeze([`.ehecoatl/.cache`, `.ehecoatl/log`
 
 async function enforceTenantDiskLimit({
   storage,
-  tenantRoute,
+  projectRoute,
   middlewareStackRuntimeConfig,
   pendingWriteBytes = 0,
   contextLabel = `tenant_disk_limit`
 }) {
-  const policy = resolveDiskLimitPolicy({ tenantRoute, middlewareStackRuntimeConfig });
+  const policy = resolveDiskLimitPolicy({ projectRoute, middlewareStackRuntimeConfig });
   if (!policy.enabled) {
     return {
       allowed: true,
@@ -26,7 +26,7 @@ async function enforceTenantDiskLimit({
 
   const usageBefore = await collectTrackedUsage({
     storage,
-    rootFolder: resolveRouteRootFolder(tenantRoute),
+    rootFolder: resolveRouteRootFolder(projectRoute),
     trackedPaths: policy.trackedPaths
   });
   const projectedBytes = usageBefore.totalBytes + pendingWriteBytes;
@@ -57,7 +57,7 @@ async function enforceTenantDiskLimit({
 
   const usageAfter = await collectTrackedUsage({
     storage,
-    rootFolder: resolveRouteRootFolder(tenantRoute),
+    rootFolder: resolveRouteRootFolder(projectRoute),
     trackedPaths: policy.trackedPaths
   });
   const projectedAfterBytes = usageAfter.totalBytes + pendingWriteBytes;
@@ -65,7 +65,7 @@ async function enforceTenantDiskLimit({
 
   if (!allowed) {
     console.warn(
-      `[${contextLabel}] tenant hostname=${tenantRoute.origin.hostname} root=${tenantRoute.folders.rootFolder} blocked ` +
+      `[${contextLabel}] tenant hostname=${projectRoute.origin.hostname} root=${projectRoute.folders.rootFolder} blocked ` +
       `usageBeforeBytes=${usageBefore.totalBytes} usageAfterBytes=${usageAfter.totalBytes} ` +
       `pendingWriteBytes=${pendingWriteBytes} maxBytes=${policy.maxBytes} cleanedBytes=${cleanedBytes}`
     );
@@ -83,11 +83,11 @@ async function enforceTenantDiskLimit({
 }
 
 function resolveDiskLimitPolicy({
-  tenantRoute,
+  projectRoute,
   middlewareStackRuntimeConfig
 }) {
   const globalConfig = middlewareStackRuntimeConfig?.diskLimit ?? {};
-  const tenantConfig = tenantRoute?.diskLimit ?? {};
+  const tenantConfig = projectRoute?.diskLimit ?? {};
 
   const globalEnabled = globalConfig.enabled === true;
   const tenantEnabled = tenantConfig.enabled;
@@ -106,7 +106,7 @@ function resolveDiskLimitPolicy({
 
   const resolvedMaxBytes = normalizeBytes(
     tenantConfig.maxBytes
-      ?? tenantRoute?.diskLimitBytes
+      ?? projectRoute?.diskLimitBytes
       ?? globalConfig.defaultMaxBytes
       ?? globalConfig.maxBytes
   );
@@ -158,9 +158,9 @@ async function collectTrackedUsage({
   };
 }
 
-function resolveRouteRootFolder(tenantRoute) {
-  return tenantRoute?.folders?.rootFolder
-    ?? tenantRoute?.rootFolder
+function resolveRouteRootFolder(projectRoute) {
+  return projectRoute?.folders?.rootFolder
+    ?? projectRoute?.rootFolder
     ?? null;
 }
 

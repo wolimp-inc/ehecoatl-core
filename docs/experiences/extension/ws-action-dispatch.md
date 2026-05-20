@@ -19,7 +19,7 @@ This experience lets a WebSocket route expose a bounded inbound action surface t
 - `ehecoatl-runtime/builtin-extensions/adapters/inbound/ingress-runtime/uws/ws-handler.js`
 - `ehecoatl-runtime/_core/managers/ws-hub-manager/ws-hub-manager.js`
 - `ehecoatl-runtime/bootstrap/process-isolated-runtime.js`
-- `ehecoatl-runtime/builtin-extensions/tenant-kits/test/app_www/app/ws/actions/hello.js`
+- `ehecoatl-runtime/builtin-extensions/project-kits/test/app_www/app/ws/actions/hello.js`
 
 ## Related Docs
 

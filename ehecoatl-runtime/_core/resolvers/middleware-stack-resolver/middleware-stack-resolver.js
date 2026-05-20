@@ -43,6 +43,7 @@ class MiddlewareStackResolver {
       ? tenantId.trim().toLowerCase()
       : null;
     this.tenantsBase = tenantsBase
+      ?? this.config?.adapters?.tenantDirectoryResolver?.projectsPath
       ?? this.config?.adapters?.tenantDirectoryResolver?.tenantsPath
       ?? null;
     this.coreMiddlewarePaths = normalizeProtocolPaths(coreMiddlewarePaths ?? coreMiddlewaresPath ?? null);

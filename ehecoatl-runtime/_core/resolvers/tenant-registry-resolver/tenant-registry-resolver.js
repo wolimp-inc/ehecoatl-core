@@ -17,6 +17,7 @@ const { reconcileRegistryState } = require(`./reconcile-registry-state`);
 class TenantRegistryResolver extends AdaptableUseCase {
   config;
   storageService;
+  projectsPath;
   tenantsPath;
   registryPath;
   installRegistryPath;
@@ -26,6 +27,7 @@ class TenantRegistryResolver extends AdaptableUseCase {
     super(kernelContext.config._adapters.tenantRegistryResolver);
     this.config = kernelContext.config.adapters.tenantRegistryResolver ?? {};
     this.storageService = kernelContext.useCases.storageService;
+    this.projectsPath = getSupervisionScopePath(`RUNTIME`, `projects`);
     this.tenantsPath = getSupervisionScopePath(`RUNTIME`, `tenants`);
     this.registryPath = getSupervisionScopePath(`RUNTIME`, `registry`);
     this.installRegistryPath = this.registryPath ? path.join(this.registryPath, `install.json`) : null;
@@ -48,7 +50,21 @@ class TenantRegistryResolver extends AdaptableUseCase {
       scanSummary: {
         ...(scanSummary ?? {}),
         registry: reconciledRegistry,
+        activeProjects: [...reconciledRegistry.domains.values()].map((tenantRecord) => ({
+          projectId: tenantRecord.projectId ?? tenantRecord.tenantId,
+          projectDomain: tenantRecord.projectDomain ?? tenantRecord.domain,
+          projectRoot: tenantRecord.projectRoot ?? tenantRecord.rootFolder ?? null,
+          tenantId: tenantRecord.tenantId,
+          tenantDomain: tenantRecord.domain,
+          tenantRoot: tenantRecord.rootFolder ?? null,
+          aliases: tenantRecord.aliases ?? [],
+          internalProxy: tenantRecord.internalProxy ?? null,
+          ...buildTransportProcessIdentity(tenantRecord.tenantId)
+        })),
         activeTenants: [...reconciledRegistry.domains.values()].map((tenantRecord) => ({
+          projectId: tenantRecord.projectId ?? tenantRecord.tenantId,
+          projectDomain: tenantRecord.projectDomain ?? tenantRecord.domain,
+          projectRoot: tenantRecord.projectRoot ?? tenantRecord.rootFolder ?? null,
           tenantId: tenantRecord.tenantId,
           tenantDomain: tenantRecord.domain,
           tenantRoot: tenantRecord.rootFolder ?? null,
@@ -63,8 +79,8 @@ class TenantRegistryResolver extends AdaptableUseCase {
   async persistRegistry(registry, scanSummary = null) {
     this.registry = registry;
 
-    if (!this.tenantsPath || !this.registryPath) {
-      throw new Error(`TenantRegistryResolver requires supervision-scope contract paths RUNTIME.tenants and RUNTIME.registry`);
+    if (!this.projectsPath || !this.registryPath) {
+      throw new Error(`TenantRegistryResolver requires supervision-scope contract paths RUNTIME.projects and RUNTIME.registry`);
     }
 
     const persistRegistryAdapter = this.adapter?.persistRegistryAdapter;
@@ -81,6 +97,7 @@ class TenantRegistryResolver extends AdaptableUseCase {
       storage: this.storageService,
       registry,
       scanSummary,
+      projectsPath: this.projectsPath,
       tenantsPath: this.tenantsPath,
       registryPath: this.registryPath,
       snapshotMetadata: await this.#loadSnapshotMetadata()
@@ -117,7 +134,7 @@ class TenantRegistryResolver extends AdaptableUseCase {
     const normalizedDomain = String(domain ?? ``).trim().toLowerCase();
     const normalizedTenantId = String(tenantId ?? ``).trim();
     if (!normalizedTenantId || !normalizedDomain) {
-      throw new Error(`markLetsEncryptTriggerStarted requires tenantId and domain`);
+      throw new Error(`markLetsEncryptTriggerStarted requires projectId and domain`);
     }
     if (!(this.registry?.domains instanceof Map)) {
       throw new Error(`Tenant registry is not available for certificate trigger persistence`);
@@ -133,7 +150,7 @@ class TenantRegistryResolver extends AdaptableUseCase {
     }
 
     if (!matchedDomainKey || !matchedRecord) {
-      throw new Error(`Unable to find tenant ${normalizedTenantId} in runtime registry`);
+      throw new Error(`Unable to find project ${normalizedTenantId} in runtime registry`);
     }
 
     const previousAutomation = matchedRecord.certificateAutomation ?? { letsEncryptTriggeredDomains: {} };
@@ -175,8 +192,8 @@ class TenantRegistryResolver extends AdaptableUseCase {
     for (const entry of entries) {
       if (!entry?.isDirectory?.()) continue;
       const entryName = String(entry.name ?? ``);
-      if (!/^tenant_[a-z0-9]{12}$/i.test(entryName)) continue;
-      const tenantIdFromFolder = entryName.replace(/^tenant_/i, ``);
+      if (!/^(?:project|tenant)_[a-z0-9]{12}$/i.test(entryName)) continue;
+      const tenantIdFromFolder = entryName.replace(/^(?:project|tenant)_/i, ``);
       const snapshotPath = path.join(this.registryPath, entryName, buildTenantSnapshotFileName(tenantIdFromFolder));
       const rawContent = await fs.readFile(snapshotPath, `utf8`).catch(() => null);
       if (!rawContent) continue;
@@ -217,7 +234,7 @@ function buildTenantSnapshotFileName(tenantId) {
 }
 
 function buildTransportProcessIdentity(tenantId) {
-  const identity = getRenderedProcessIdentity(`tenantScope`, `transport`, {
+  const identity = getRenderedProcessIdentity(`projectScope`, `transport`, {
     tenant_id: tenantId
   }) ?? {};
 

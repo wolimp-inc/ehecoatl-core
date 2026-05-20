@@ -19,7 +19,7 @@ const { startDirectorCliSocketServer } = require(`./director-cli-socket`);
 boot();
 
 /**
- * Boots the director child process and wires tenancy
+ * Boots the director child process and wires project routing
  * and queue RPC services.
  */
 async function boot() {
@@ -84,17 +84,32 @@ async function boot() {
   }
 
   {
-    // TENANCY ROUTING
-    const { tenantDirectoryResolver, requestUriRoutingRuntime } = useCasesDirector;
+    // PROJECT ROUTING
+    const { projectDirectoryResolver, requestUriRoutingRuntime } = useCasesDirector;
     const nQ = config.adapters.ingressRuntime.question;
-    const tQ = config.adapters.tenantDirectoryResolver.question;
+    const projectResolverConfig = config.adapters.projectDirectoryResolver
+      ?? config.adapters.tenantDirectoryResolver;
+    const legacyResolverConfig = config.adapters.tenantDirectoryResolver ?? {};
+    const tQ = projectResolverConfig.question ?? {};
+    const legacyQ = legacyResolverConfig.question ?? {};
     const pQ = config.adapters.processForkRuntime.question;
-    console.log(`Registering tenancy routing RPC handlers`);
+    console.log(`Registering project routing RPC handlers`);
     rpcEndpoint.addListener(nQ.requestUriRoutingRuntime, (i) => requestUriRoutingRuntime.matchRoute(i));
-    rpcEndpoint.addListener(tQ.forceRescanNow, (i) => tenantDirectoryResolver.requestForcedScan({
+    const registerOnce = (() => {
+      const questions = new Set();
+      return (question, listener) => {
+        const normalizedQuestion = String(question ?? ``).trim();
+        if (!normalizedQuestion || questions.has(normalizedQuestion)) return;
+        questions.add(normalizedQuestion);
+        rpcEndpoint.addListener(normalizedQuestion, listener);
+      };
+    })();
+    const forceRescanListener = (i) => projectDirectoryResolver.requestForcedScan({
       reason: i?.reason ?? `rpc_force_rescan`
-    }));
-    rpcEndpoint.addListener(tQ.shutdownProcessNow, async (i) => {
+    });
+    registerOnce(tQ.forceRescanNow, forceRescanListener);
+    registerOnce(legacyQ.forceRescanNow, forceRescanListener);
+    const shutdownProcessListener = async (i) => {
       const label = i?.label ?? null;
       if (!label) {
         return {
@@ -113,7 +128,9 @@ async function boot() {
           timeoutMs: i?.timeoutMs ?? null
         }
       });
-    });
+    };
+    registerOnce(tQ.shutdownProcessNow, shutdownProcessListener);
+    registerOnce(legacyQ.shutdownProcessNow, shutdownProcessListener);
 
     console.log(`Starting director CLI RPC socket`);
     const directorCliSocketServer = await startDirectorCliSocketServer({
@@ -124,12 +141,12 @@ async function boot() {
       directorCliSocketServer.close().catch(() => { });
     });
 
-    console.log(`Loading tenancy route definitions`);
-    await tenantDirectoryResolver.scan();
+    console.log(`Loading project route definitions`);
+    await projectDirectoryResolver.scan();
 
-    const tenancyReadiness = tenantDirectoryResolver.getReadinessSnapshot();
-    if (!tenancyReadiness.ready) {
-      throw new Error(`Director tenant directory resolver is not ready after initial scan`);
+    const projectReadiness = projectDirectoryResolver.getReadinessSnapshot();
+    if (!projectReadiness.ready) {
+      throw new Error(`Director project directory resolver is not ready after initial scan`);
     }
 
     // rpcEndpoint.addListener(nQ.getSharedObject, .getSharedObject);

@@ -125,12 +125,13 @@ class DirectorPluginContextV1 extends BasePluginContextV1 {
       },
       removeListener: (question) => this.useCases?.rpcEndpoint?.removeListener?.(question)
     });
-    this.tenancy = Object.freeze({
-      getReadinessSnapshot: () => this.useCases?.tenantDirectoryResolver?.getReadinessSnapshot?.() ?? null,
+    this.project = Object.freeze({
+      getReadinessSnapshot: () => this.useCases?.projectDirectoryResolver?.getReadinessSnapshot?.() ?? null,
       forceRescan: (reason = `plugin_context_rescan`) => {
-        return this.useCases?.tenantDirectoryResolver?.requestForcedScan?.({ reason }) ?? null;
+        return this.useCases?.projectDirectoryResolver?.requestForcedScan?.({ reason }) ?? null;
       }
     });
+    this.tenancy = this.project;
     this.queue = Object.freeze({});
 
     Object.freeze(this);

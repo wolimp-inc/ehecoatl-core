@@ -4,7 +4,7 @@
 'use strict';
 
 
-const { group, tenantRoot, appRoot } = require(`../context.js`);
+const { group } = require(`../context.js`);
 const sharedSpec = require(`./cli.spec.shared.js`);
 
 const cloneCommand = (commandName, overrides = {}) => ({
@@ -14,13 +14,14 @@ const cloneCommand = (commandName, overrides = {}) => ({
 
 module.exports = {
   ABOUT: {
-    label: `Tenant CLI command spec`,
-    description: `Tenant-scoped command surface isolated to one tenant for app deployment plus tenant-level config and extensions, with optional explicit @domain target override`,
+    label: `Legacy tenant CLI command spec`,
+    description: `Legacy alias for the project-scoped command surface; prefer the project CLI for new workflows`,
     contractClass: `SERVICE.CLI.SPEC`
   },
   prefix: `tenant`,
   groupsAllowed: [
     `root`,
+    group.projectScope,
     group.tenantScope
   ],
   COMMANDS: [
@@ -32,7 +33,7 @@ module.exports = {
           prefix: null,
           optional: false,
           default: null,
-          description: `app name to create inside the selected tenant`,
+          description: `app name to create inside the selected project`,
           shapes: [`{app_name}`]
         },
         {
@@ -46,12 +47,12 @@ module.exports = {
       AFTER_CLI: {
         description: `executed after this command, in this case for director registry refresh`,
         COMMANDS: [
-          `ehecoatl core rescan tenants`
+          `ehecoatl core rescan projects`
         ]
       },
       ABOUT: {
         label: `Create and register a new app environment`,
-        description: `Creates a new app environment inside the selected tenant using an app kit`
+        description: `Creates a new app environment inside the selected project using an app kit; tenant is a legacy CLI alias`
       }
     },
     {
@@ -62,13 +63,13 @@ module.exports = {
           prefix: null,
           optional: false,
           default: null,
-          description: `app name to remove from the selected tenant`,
+          description: `app name to remove from the selected project`,
           shapes: [`{app_name}`]
         }
       ],
       ABOUT: {
-        label: `Delete an app from the selected tenant`,
-        description: `Removes a previously deployed app environment from the selected tenant`
+        label: `Delete an app from the selected project`,
+        description: `Removes a previously deployed app environment from the selected project`
       }
     },
     {
@@ -76,8 +77,8 @@ module.exports = {
       old_command: null,
       PARAMS: [],
       ABOUT: {
-        label: `List apps in the current tenant`,
-        description: `Returns the apps currently registered inside the selected tenant; tenant commands may also be prefixed with @domain after the tenant scope`
+        label: `List apps in the current project`,
+        description: `Returns the apps currently registered inside the selected project; tenant commands are legacy aliases and may also be prefixed with @domain`
       }
     },
     {
@@ -85,8 +86,8 @@ module.exports = {
       old_command: null,
       PARAMS: [],
       ABOUT: {
-        label: `Enable current tenant`,
-        description: `Marks the current tenant as enabled`
+        label: `Enable current project`,
+        description: `Marks the current project as enabled`
       }
     },
     {
@@ -94,8 +95,8 @@ module.exports = {
       old_command: null,
       PARAMS: [],
       ABOUT: {
-        label: `Disable current tenant`,
-        description: `Marks the current tenant as disabled`
+        label: `Disable current project`,
+        description: `Marks the current project as disabled`
       }
     },
     {
@@ -111,26 +112,26 @@ module.exports = {
         }
       ],
       ABOUT: {
-        label: `Create a new tenant extension resource`,
-        description: `Creates a tenant-shared plugin inside the current tenant`
+        label: `Create a new project extension resource`,
+        description: `Creates a project-shared plugin inside the current project`
       }
     },
     cloneCommand(`status`, {
       ABOUT: {
-        label: `Inspect tenant status`,
-        description: `Returns status details for the current tenant resolved from the working directory`
+        label: `Inspect project status`,
+        description: `Returns status details for the current project resolved from the working directory`
       }
     }),
     cloneCommand(`log`, {
       ABOUT: {
-        label: `Inspect tenant logs`,
-        description: `Returns log output for the current tenant resolved from the working directory`
+        label: `Inspect project logs`,
+        description: `Returns log output for the current project resolved from the working directory`
       }
     }),
     cloneCommand(`config`, {
       ABOUT: {
-        label: `Get or set tenant configuration`,
-        description: `Reads or updates keys in the current tenant config.json resolved from the working directory`
+        label: `Get or set project configuration`,
+        description: `Reads or updates keys in the current project config.json resolved from the working directory`
       }
     })
   ]

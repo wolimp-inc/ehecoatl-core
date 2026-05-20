@@ -17,6 +17,11 @@ const superWorkspaceLinks = Object.freeze([
     scope: `super`
   }),
   Object.freeze({
+    relativePath: `projects`,
+    targetPath: context.serviceProjectsRoot,
+    scope: `super`
+  }),
+  Object.freeze({
     relativePath: `tenants`,
     targetPath: context.serviceTenantsRoot,
     scope: `super`
@@ -40,7 +45,9 @@ const superWorkspaceLinks = Object.freeze([
 
 function buildManagedLoginWorkspacePlan({
   scopeSelectors = [],
+  projectsBase = context.serviceProjectsRoot,
   tenantsBase = context.serviceTenantsRoot,
+  legacyTenantsBase = tenantsBase,
   workspaceHome
 } = {}) {
   const normalizedWorkspaceHome = String(workspaceHome ?? ``).trim();
@@ -57,7 +64,9 @@ function buildManagedLoginWorkspacePlan({
 
     const resolvedScope = resolveScopeSelector({
       selector,
-      tenantsBase
+      projectsBase,
+      tenantsBase,
+      legacyTenantsBase
     });
     appendUnique(resolvedGroups, resolvedScope.group);
     resolvedScopes.push(resolvedScope);
@@ -83,14 +92,14 @@ function buildManagedLoginWorkspacePlan({
   }
 
   for (const entry of resolvedScopes) {
-    if (entry.kind === `tenant` && !hasSuperScope) {
+    if (entry.kind === `project` && !hasSuperScope) {
       pushWorkspaceLink({
         workspaceLinks,
         seenRelativePaths,
         workspaceHome: normalizedWorkspaceHome,
-        relativePath: `@${entry.tenantDomain}`,
-        targetPath: entry.tenantRoot,
-        scope: `tenant`,
+        relativePath: `@${entry.projectDomain ?? entry.tenantDomain}`,
+        targetPath: entry.projectRoot ?? entry.tenantRoot,
+        scope: `project`,
         selector: entry.selector,
         tenantId: entry.tenantId
       });
@@ -120,7 +129,9 @@ function buildManagedLoginWorkspacePlan({
 
 function resolveScopeSelector({
   selector,
-  tenantsBase
+  projectsBase,
+  tenantsBase,
+  legacyTenantsBase
 }) {
   if (selector === `super`) {
     return Object.freeze({
@@ -133,7 +144,9 @@ function resolveScopeSelector({
   const appSelector = parseAppScopeSelector(selector);
   if (appSelector) {
     const appRecord = resolveAppScopeSelector({
+      projectsBase,
       tenantsBase,
+      legacyTenantsBase,
       selector,
       appName: appSelector.appName,
       tenantSelector: appSelector.tenantSelector
@@ -159,18 +172,23 @@ function resolveScopeSelector({
   if (/^@[a-z0-9]{12}$/.test(selector)) {
     const tenantId = selector.slice(1);
     const tenantRecord = tenantLayout.findOpaqueTenantRecordByIdSync({
+      projectsBase,
       tenantsBase,
+      legacyTenantsBase,
       tenantId
     });
 
     if (!tenantRecord) {
-      throw new Error(`Tenant selector '${selector}' not found.`);
+      throw new Error(`Project selector '${selector}' not found.`);
     }
 
     return Object.freeze({
-      kind: `tenant`,
+      kind: `project`,
       selector,
       group: `g_${tenantRecord.tenantId}`,
+      projectId: tenantRecord.projectId ?? tenantRecord.tenantId,
+      projectDomain: tenantRecord.projectDomain ?? tenantRecord.tenantDomain,
+      projectRoot: tenantRecord.projectRoot ?? tenantRecord.tenantRoot,
       tenantId: tenantRecord.tenantId,
       tenantDomain: tenantRecord.tenantDomain,
       tenantRoot: tenantRecord.tenantRoot
@@ -179,25 +197,30 @@ function resolveScopeSelector({
 
   if (selector.startsWith(`@`)) {
     const tenantRecord = tenantLayout.findOpaqueTenantRecordByDomainSync({
+      projectsBase,
       tenantsBase,
+      legacyTenantsBase,
       tenantDomain: selector.slice(1)
     });
 
     if (!tenantRecord) {
-      throw new Error(`Tenant selector '${selector}' not found.`);
+      throw new Error(`Project selector '${selector}' not found.`);
     }
 
     return Object.freeze({
-      kind: `tenant`,
+      kind: `project`,
       selector,
       group: `g_${tenantRecord.tenantId}`,
+      projectId: tenantRecord.projectId ?? tenantRecord.tenantId,
+      projectDomain: tenantRecord.projectDomain ?? tenantRecord.tenantDomain,
+      projectRoot: tenantRecord.projectRoot ?? tenantRecord.tenantRoot,
       tenantId: tenantRecord.tenantId,
       tenantDomain: tenantRecord.tenantDomain,
       tenantRoot: tenantRecord.tenantRoot
     });
   }
 
-  throw new Error(`Unsupported scope selector '${selector}'. Use 'super', '@<domain>', '@<tenant_id>', '<appname>@<domain>', or '<appname>@<tenant_id>'.`);
+  throw new Error(`Unsupported scope selector '${selector}'. Use 'super', '@<domain>', '@<project_id>', '<appname>@<domain>', or '<appname>@<project_id>'. Legacy tenant ids remain accepted.`);
 }
 
 function parseAppScopeSelector(selector) {
@@ -215,20 +238,26 @@ function parseAppScopeSelector(selector) {
 }
 
 function resolveAppScopeSelector({
+  projectsBase,
   tenantsBase,
+  legacyTenantsBase,
   appName,
   tenantSelector
 }) {
   if (/^[a-z0-9]{12}$/.test(tenantSelector)) {
     return tenantLayout.findOpaqueAppRecordByTenantIdAndAppNameSync({
+      projectsBase,
       tenantsBase,
+      legacyTenantsBase,
       tenantId: tenantSelector,
       appName
     });
   }
 
   return tenantLayout.findOpaqueAppRecordByDomainAndAppNameSync({
+    projectsBase,
     tenantsBase,
+    legacyTenantsBase,
     tenantDomain: tenantSelector,
     appName
   });

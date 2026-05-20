@@ -32,9 +32,9 @@ The request path is normalized before route matching, including canonical slash 
 
 ## 3. Route Resolution
 
-The transport process asks `director` to resolve the active route through `requestUriRoutingRuntime`.
+The project transport process asks `director` to resolve the active route through `requestUriRoutingRuntime`.
 
-That resolution step uses the active tenancy registry maintained by `tenantDirectoryResolver` and returns a normalized `TenantRoute` model.
+That resolution step uses the active project registry maintained by `projectDirectoryResolver` and returns a normalized `ProjectRoute` model. Legacy `tenantDirectoryResolver` adapters remain accepted as compatibility aliases.
 
 ## 4. Middleware Execution
 
@@ -45,12 +45,12 @@ The packaged transport flow includes middleware for:
 - static asset delivery
 - response-cache lookup
 - queue coordination
-- tenant action execution
+- project action execution
 - asynchronous cache materialization
 
 In the current packaged HTTP stack, static asset middleware runs before queue coordination. A static asset route usually returns from `core-static-asset-serve` and does not enter the action queue.
 
-The `core-queue` middleware currently queues app action execution only. It checks for an action target, then asks `director` to reserve a queue slot before `core-tenant-action` sends the request to the isolated runtime. The queue label is derived from the resolved app identity as `actionQueue:{tenantId}:{appId}`. If older or synthetic route metadata does not include app IDs, the fallback label includes the requested host plus the resolved app name when available.
+The `core-queue` middleware currently queues app action execution only. It checks for an action target, then asks `director` to reserve a queue slot before `core-tenant-action` sends the request to the isolated runtime. The queue label is derived from the resolved app identity as `actionQueue:{projectId}:{appId}`. If older or synthetic route metadata only includes tenant IDs, that legacy identity is still accepted as a fallback.
 
 The action queue uses `adapters.middlewareStackRuntime.queue.actionMaxConcurrent`, falling back to `perTenantMaxConcurrent`, then `5`. Today `perTenantMaxConcurrent` is a fallback name for action concurrency, not a global cap across all static, cached, WebSocket, and action work for a tenant. `staticMaxConcurrent` and `staticWaitTimeoutMs` are present in the default config but are not wired into `core-static-asset-serve` in this snapshot.
 
@@ -58,13 +58,13 @@ If the action queue is full, the middleware returns `503 Service Unavailable`. I
 
 Response-cache materialization uses the same director queue broker for a narrower purpose: explicit cache misses are serialized per cache key with one concurrent materializer. If that cache queue cannot be acquired, the request continues instead of returning an overload response.
 
-Tenant and app middleware remain separate from core transport middleware. They are represented in route metadata and tenant-local middleware files.
+Project and app middleware remain separate from core transport middleware. They are represented in route metadata and project-local middleware files.
 
-Tenant and app middleware are one of the few intentional runtime weak-load surfaces. They are loaded from absolute file paths through `weakRequire`, which compares source-file modification time, clears stale `require.cache` state when the file changes or disappears, and reloads on the next stack build. This exception exists for deployment-facing extension code only; it does not extend to arbitrary core runtime files. See [Architecture](architecture.md#load-policy) for the canonical load-policy rule.
+Project and app middleware are one of the few intentional runtime weak-load surfaces. They are loaded from absolute file paths through `weakRequire`, which compares source-file modification time, clears stale `require.cache` state when the file changes or disappears, and reloads on the next stack build. This exception exists for deployment-facing extension code only; it does not extend to arbitrary core runtime files. See [Architecture](architecture.md#load-policy) for the canonical load-policy rule.
 
 ## 5. Action Execution
 
-When the route points to an app action, the transport process sends the request to the canonical `e_app_{tenant_id}_{app_id}` isolated runtime process for that application.
+When the route points to an app action, the transport process sends the request to the canonical `e_app_{project_id}_{app_id}` isolated runtime process for that application. Existing legacy labels using tenant-derived IDs continue to be recognized.
 
 The isolated runtime executes the action and returns the response payload back to transport.
 

@@ -6,9 +6,9 @@
 
 const RpcRuntime = require(`@/_core/runtimes/rpc-runtime`);
 const QueueManager = require(`@/_core/managers/queue-manager`);
-const TenantDirectoryResolver = require(`@/_core/resolvers/tenant-directory-resolver`);
-const TenantRegistryResolver = require(`@/_core/resolvers/tenant-registry-resolver`);
-const TenantRouteMatcherCompiler = require(`@/_core/compilers/tenant-route-matcher-compiler`);
+const ProjectDirectoryResolver = require(`@/_core/resolvers/project-directory-resolver`);
+const ProjectRegistryResolver = require(`@/_core/resolvers/project-registry-resolver`);
+const ProjectRouteMatcherCompiler = require(`@/_core/compilers/project-route-matcher-compiler`);
 const RequestUriRoutingRuntime = require(`@/_core/runtimes/request-uri-routing-runtime`);
 
 //SERVICES
@@ -30,9 +30,9 @@ const createPluginUseCases = require(`@/_core/boot/create-plugin-use-cases`);
  * @returns {{ 
  * rpcEndpoint: RpcRuntime,
  * queueBroker: QueueManager,
- * tenantDirectoryResolver: TenantDirectoryResolver,
- * tenantRegistryResolver: TenantRegistryResolver,
- * tenantRouteMatcherCompiler: TenantRouteMatcherCompiler,
+ * projectDirectoryResolver: ProjectDirectoryResolver,
+ * projectRegistryResolver: ProjectRegistryResolver,
+ * projectRouteMatcherCompiler: ProjectRouteMatcherCompiler,
  * requestUriRoutingRuntime: RequestUriRoutingRuntime,
  * storageService: StorageService,
  * certificateService: CertificateService,
@@ -59,14 +59,17 @@ module.exports = async function kernel(globalCore) {
   useCases.sharedCacheService = new SharedCacheService(kernelContext);
   useCases.rpcEndpoint = new RpcRuntime(kernelContext);
   useCases.queueBroker = new QueueManager(kernelContext);
-  useCases.tenantDirectoryResolver = new TenantDirectoryResolver(kernelContext);
-  useCases.tenantRegistryResolver = new TenantRegistryResolver(kernelContext);
-  useCases.tenantRouteMatcherCompiler = new TenantRouteMatcherCompiler(kernelContext);
+  useCases.projectDirectoryResolver = new ProjectDirectoryResolver(kernelContext);
+  useCases.projectRegistryResolver = new ProjectRegistryResolver(kernelContext);
+  useCases.projectRouteMatcherCompiler = new ProjectRouteMatcherCompiler(kernelContext);
+  useCases.tenantDirectoryResolver = useCases.projectDirectoryResolver;
+  useCases.tenantRegistryResolver = useCases.projectRegistryResolver;
+  useCases.tenantRouteMatcherCompiler = useCases.projectRouteMatcherCompiler;
   useCases.requestUriRoutingRuntime = new RequestUriRoutingRuntime(kernelContext);
-  useCases.tenantDirectoryResolver.attachTenantRegistryResolver(useCases.tenantRegistryResolver);
-  useCases.tenantDirectoryResolver.attachRouteMatcherCompiler(useCases.tenantRouteMatcherCompiler);
-  useCases.tenantDirectoryResolver.attachRouteRuntime(useCases.requestUriRoutingRuntime);
-  useCases.tenantDirectoryResolver.attachWebServerService(useCases.webServerService);
+  useCases.projectDirectoryResolver.attachProjectRegistryResolver(useCases.projectRegistryResolver);
+  useCases.projectDirectoryResolver.attachRouteMatcherCompiler(useCases.projectRouteMatcherCompiler);
+  useCases.projectDirectoryResolver.attachRouteRuntime(useCases.requestUriRoutingRuntime);
+  useCases.projectDirectoryResolver.attachWebServerService(useCases.webServerService);
 
   return useCases;
 }

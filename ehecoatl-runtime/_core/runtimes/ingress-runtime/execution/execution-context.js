@@ -4,7 +4,7 @@
 'use strict';
 
 
-const TenantRoute = require(`@/_core/runtimes/ingress-runtime/execution/tenant-route`);
+const ProjectRoute = require(`@/_core/runtimes/ingress-runtime/execution/project-route`);
 const ResponseData = require(`@/_core/runtimes/ingress-runtime/execution/response-data`);
 const RequestData = require(`@/_core/runtimes/ingress-runtime/execution/request-data`);
 const ExecutionMetaData = require(`@/_core/runtimes/ingress-runtime/execution/execution-meta-data`);
@@ -37,8 +37,8 @@ class ExecutionContext {
   finishCallbacksCalled;
   metaFinalized;
 
-  /** @type {TenantRoute} */
-  tenantRoute;
+  /** @type {ProjectRoute} */
+  projectRoute;
 
   /**
    * 
@@ -163,7 +163,7 @@ class ExecutionContext {
     this.meta.duration = this.meta.finishedAt - this.meta.startedAt;
     const latencyClassification = classifyRequestLatency({
       durationMs: this.meta.duration,
-      tenantRoute: this.tenantRoute,
+      projectRoute: this.projectRoute,
       meta: this.meta,
       config: this.ingressRuntime?.middlewareStackRuntime?.config?.latencyClassification
     });

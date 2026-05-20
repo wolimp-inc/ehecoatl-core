@@ -34,7 +34,7 @@ Key sub-experiences:
 
 Key sub-experiences:
 
-- [Tenant Kits](extension/tenant-kits.md) - Tenant kits define shared tenant-level assets, middleware, and conventions before app deployment starts.
+- [Project Kits](extension/project-kits.md) - Project kits define shared tenant-level assets, middleware, and conventions before app deployment starts.
 - [App Kits](extension/app-kits.md) - App kits package routes, actions, assets, and example runtime behavior for fast deploy.
 - [WS Action Dispatch](extension/ws-action-dispatch.md) - WebSocket routes can expose inbound action surfaces through `wsActionsAvailable` and isolated action handlers.
 

@@ -23,11 +23,13 @@ module.exports = async function kernel(globalCore) {
   const kernelContext = new KernelContext(globalCore);
   const useCases = {};
   kernelContext.useCases = useCases;
+  const projectId = globalCore.projectId ?? globalCore.tenantId ?? null;
+  const projectDomain = globalCore.projectDomain ?? globalCore.tenantDomain ?? null;
   const customPluginsPaths = [
     globalCore.config?.runtime?.customPluginsPath ?? null,
     renderLayerPath(`tenantScope`, `OVERRIDES`, `plugins`, {
-      tenant_id: globalCore.tenantId ?? null,
-      tenant_domain: globalCore.tenantDomain ?? null
+      tenant_id: projectId,
+      tenant_domain: projectDomain
     })
   ];
   Object.assign(useCases, await createPluginUseCases({
@@ -48,15 +50,15 @@ module.exports = async function kernel(globalCore) {
   useCases.rpcEndpoint = new RpcRuntime(kernelContext);
   useCases.middlewareStackResolver = new MiddlewareStackResolver({
     config: globalCore.config,
-    tenantId: globalCore.tenantId,
+    tenantId: projectId,
     tenantMiddlewarePaths: {
       http: renderLayerPath(`tenantScope`, `SHARED`, `httpMiddlewares`, {
-        tenant_id: globalCore.tenantId ?? null,
-        tenant_domain: globalCore.tenantDomain ?? null
+        tenant_id: projectId,
+        tenant_domain: projectDomain
       }),
       ws: renderLayerPath(`tenantScope`, `SHARED`, `wsMiddlewares`, {
-        tenant_id: globalCore.tenantId ?? null,
-        tenant_domain: globalCore.tenantDomain ?? null
+        tenant_id: projectId,
+        tenant_domain: projectDomain
       })
     }
   });

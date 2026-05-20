@@ -256,15 +256,23 @@ function assertManagedNginxIncludePath(targetPath) {
 
 function assertTenantNginxLogPath(targetPath) {
   const normalizedPath = path.resolve(targetPath);
-  const tenantRoot = path.resolve(`/var/opt/ehecoatl/tenants`);
-  const relativePath = path.relative(tenantRoot, normalizedPath);
+  const allowedRoots = [
+    { root: path.resolve(`/var/opt/ehecoatl/projects`), prefix: `project_` },
+    { root: path.resolve(`/var/opt/ehecoatl/tenants`), prefix: `tenant_` }
+  ];
+  const match = allowedRoots
+    .map(({ root, prefix }) => ({
+      prefix,
+      relativePath: path.relative(root, normalizedPath)
+    }))
+    .find(({ relativePath }) => !relativePath.startsWith(`..`) && !path.isAbsolute(relativePath));
+  const relativePath = match?.relativePath ?? `..`;
   const segments = relativePath.split(path.sep);
   const fileName = segments.at(-1);
   if (
-    relativePath.startsWith(`..`) ||
-    path.isAbsolute(relativePath) ||
+    !match ||
     segments.length !== 4 ||
-    !segments[0].startsWith(`tenant_`) ||
+    !segments[0].startsWith(match.prefix) ||
     segments[1] !== `.ehecoatl` ||
     segments[2] !== `log` ||
     ![`nginx.access.log`, `nginx.error.log`].includes(fileName)

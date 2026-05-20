@@ -7,22 +7,26 @@ async function createStaticAssetInternalRedirect(middlewareContext, assetPath) {
   if (!normalizedAssetPath) return null;
   if (!await fileExists(middlewareContext, normalizedAssetPath)) return null;
 
-  const assetsRoot = path.resolve(String(middlewareContext?.tenantRoute?.folders?.assetsRootFolder ?? ``).trim());
-  const tenantRoot = path.resolve(String(middlewareContext?.tenantRoute?.folders?.tenantRootFolder ?? ``).trim());
-  if (!assetsRoot || !tenantRoot) return null;
+  const assetsRoot = path.resolve(String(middlewareContext?.projectRoute?.folders?.assetsRootFolder ?? ``).trim());
+  const projectRoot = path.resolve(String(
+    middlewareContext?.projectRoute?.folders?.projectRootFolder
+      ?? middlewareContext?.projectRoute?.folders?.tenantRootFolder
+      ?? ``
+  ).trim());
+  if (!assetsRoot || !projectRoot) return null;
 
   const resolvedAssetPath = path.resolve(normalizedAssetPath);
   if (!isInsideRoot(resolvedAssetPath, assetsRoot)) {
     return null;
   }
-  if (!isInsideRoot(resolvedAssetPath, tenantRoot)) {
+  if (!isInsideRoot(resolvedAssetPath, projectRoot)) {
     return null;
   }
 
-  const relativeToTenant = path.relative(tenantRoot, resolvedAssetPath).replaceAll(path.sep, path.posix.sep);
+  const relativeToProject = path.relative(projectRoot, resolvedAssetPath).replaceAll(path.sep, path.posix.sep);
   return Object.freeze({
     __ehecoatlBodyKind: `nginx-internal-redirect`,
-    uri: path.posix.join(`/_ehecoatl_internal/static`, relativeToTenant)
+    uri: path.posix.join(`/_ehecoatl_internal/static`, relativeToProject)
   });
 }
 
@@ -31,7 +35,7 @@ async function createResponseCacheInternalRedirect(middlewareContext, cachePath)
   if (!normalizedCachePath) return null;
   if (!await fileExists(middlewareContext, normalizedCachePath)) return null;
 
-  const rootFolder = path.resolve(String(middlewareContext?.tenantRoute?.folders?.rootFolder ?? ``).trim());
+  const rootFolder = path.resolve(String(middlewareContext?.projectRoute?.folders?.rootFolder ?? ``).trim());
   if (!rootFolder) return null;
 
   const cacheRoot = path.resolve(rootFolder, `.ehecoatl`, `.cache`);

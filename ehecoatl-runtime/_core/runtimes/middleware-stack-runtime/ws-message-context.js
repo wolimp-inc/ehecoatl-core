@@ -1,9 +1,9 @@
 'use strict';
 
-const TenantRoute = require(`@/_core/runtimes/ingress-runtime/execution/tenant-route`);
+const ProjectRoute = require(`@/_core/runtimes/ingress-runtime/execution/project-route`);
 
 class WsMessageContext {
-  tenantRoute;
+  projectRoute;
   sessionData;
   wsMessageData;
   middlewareStackRuntimeConfig;
@@ -16,16 +16,16 @@ class WsMessageContext {
   #replySent;
 
   constructor({
-    tenantRoute,
+    projectRoute,
     sessionData = {},
     wsMessageData,
     middlewareStackRuntimeConfig = null,
     services = {},
     sendToSender = null
   }) {
-    this.tenantRoute = tenantRoute instanceof TenantRoute
-      ? tenantRoute
-      : new TenantRoute(tenantRoute ?? {});
+    this.projectRoute = projectRoute instanceof ProjectRoute
+      ? projectRoute
+      : new ProjectRoute(projectRoute ?? {});
     this.sessionData = sessionData && typeof sessionData === `object`
       ? sessionData
       : {};

@@ -7,7 +7,7 @@
 const RequestUriRoutingRuntimePort = require(`@/_core/_ports/inbound/request-uri-routing-runtime-port`);
 const normalizeRoutePath = require(`@/utils/tenancy/normalize-route-path`);
 const urlParser = require(`@/utils/tenancy/url-parser`);
-const tenantRoutesFindMatch = require(`@/utils/tenancy/tenant-routes-find-match`);
+const projectRoutesFindMatch = require(`@/utils/tenancy/project-routes-find-match`);
 
 RequestUriRoutingRuntimePort.matchRouteAdapter = async function ({
   url,
@@ -35,7 +35,7 @@ RequestUriRoutingRuntimePort.matchRouteAdapter = async function ({
   if (!routeDataObject) return null;
 
   if (!Array.isArray(compiledRoutes) || compiledRoutes.length === 0) return null;
-  const routeDataMatch = tenantRoutesFindMatch(
+  const routeDataMatch = projectRoutesFindMatch(
     resolution.internalUri,
     compiledRoutes
   );

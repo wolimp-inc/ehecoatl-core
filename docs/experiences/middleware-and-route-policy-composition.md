@@ -18,11 +18,11 @@ This experience lets route metadata and middleware stacks express runtime policy
 
 - [`ehecoatl-runtime/_core/resolvers/middleware-stack-resolver/middleware-stack-resolver.js`](../../ehecoatl-runtime/_core/resolvers/middleware-stack-resolver/middleware-stack-resolver.js)
 - [`ehecoatl-runtime/_core/runtimes/middleware-stack-runtime/middleware-stack-runtime.js`](../../ehecoatl-runtime/_core/runtimes/middleware-stack-runtime/middleware-stack-runtime.js)
-- [`ehecoatl-runtime/builtin-extensions/tenant-kits/test/shared/app/http/middlewares/session.js`](../../ehecoatl-runtime/builtin-extensions/tenant-kits/test/shared/app/http/middlewares/session.js)
+- [`ehecoatl-runtime/builtin-extensions/project-kits/test/shared/app/http/middlewares/session.js`](../../ehecoatl-runtime/builtin-extensions/project-kits/test/shared/app/http/middlewares/session.js)
 - [`ehecoatl-runtime/builtin-extensions/adapters/inbound/ingress-runtime/uws/ws-handler.js`](../../ehecoatl-runtime/builtin-extensions/adapters/inbound/ingress-runtime/uws/ws-handler.js)
 
 ## Related Docs
 
 - [Request Lifecycle](../core-concepts/request-lifecycle.md)
 - [WS Action Dispatch](ws-action-dispatch.md)
-- [Tenant Kits](tenant-kits.md)
+- [Project Kits](project-kits.md)

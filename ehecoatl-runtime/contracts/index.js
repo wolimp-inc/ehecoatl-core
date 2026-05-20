@@ -10,6 +10,7 @@ const appendContracts = {
   layers: {
     internalScope: require(`./layers/internal-scope.contract.js`),
     supervisionScope: require(`./layers/supervision-scope.contract.js`),
+    projectScope: require(`./layers/project-scope.contract.js`),
     tenantScope: require(`./layers/tenant-scope.contract.js`),
     appScope: require(`./layers/app-scope.contract.js`),
   },
@@ -67,8 +68,9 @@ module.exports = {
   LAYERS: Object.freeze({
     internalScope: appendContracts.layers.internalScope,
     supervisionScope: appendContracts.layers.supervisionScope,
+    projectScope: appendContracts.layers.projectScope,
     tenantScope: appendContracts.layers.tenantScope,
     appScope: appendContracts.layers.appScope
   }),
-  LAYER_ISOLATION_CHAIN: [`appScope`, `tenantScope`, `supervisionScope`, `internalScope`]
+  LAYER_ISOLATION_CHAIN: [`appScope`, `projectScope`, `tenantScope`, `supervisionScope`, `internalScope`]
 };

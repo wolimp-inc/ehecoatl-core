@@ -1,8 +1,9 @@
-# Tenant Kits
+# Legacy Tenant Kits
 
-This folder is the home for built-in Tenant Kits.
+This folder is the legacy compatibility home for built-in Tenant Kits.
+New built-in kits should live in `../project-kits`.
 
-The current topology reference for Tenant Kits comes from the Tenant Scope Layer Contract in [tenant-scope.contract.js](../../contracts/layers/tenant-scope.contract.js).
+The current topology reference for Project Kits comes from the Tenant Scope Layer Contract in [tenant-scope.contract.js](../../contracts/layers/tenant-scope.contract.js).
 
 ## Contract Topology
 
@@ -37,4 +38,5 @@ At contract level, a tenant ingress root is organized around these roots:
 - `shared/app/` and `shared/assets/` are modeled by the contract as shared extension roots.
 - `shared/app/http/actions`, `shared/app/ws/actions`, `shared/app/utils`, and `shared/app/scripts` are now contract-declared paths.
 - The tenant root `config.json` used by the current kit implementation is not declared as a contract path root yet.
-- The default tenant kit now carries `.ehecoatl/lib/nginx.e.conf`, and the web-server service always renders nginx from the tenant-local copy of that template.
+- The default project kit now carries `.ehecoatl/lib/nginx.e.conf`, and the web-server service always renders nginx from the tenant-local copy of that template.
+- Legacy tenant kits remain accepted as secondary fallback sources for existing installs.

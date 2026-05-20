@@ -21,14 +21,14 @@ function readBody(executionContext) {
     const {
       ingressRuntime,
       requestData,
-      tenantRoute,
+      projectRoute,
       res
     } = executionContext;
     const middlewareStackRuntimeConfig = ingressRuntime.middlewareStackRuntimeConfig ?? {};
     const { maxInputBytes } = middlewareStackRuntimeConfig;
     const config = middlewareStackRuntimeConfig;
 
-    const MAX_INPUT_BYTES = parseBytes(tenantRoute.maxInputBytes ?? maxInputBytes);
+    const MAX_INPUT_BYTES = parseBytes(projectRoute.maxInputBytes ?? maxInputBytes);
 
     const contentLength = Number(requestData.headers["content-length"]);
     if (contentLength && contentLength > MAX_INPUT_BYTES)
@@ -43,7 +43,7 @@ function readBody(executionContext) {
           return reject("413 Payload Too Large");
 
         if (contentType.includes(CONTENT_TYPE_MULTIPART)) {
-          const UPLOAD_PATH = tenantRoute.upload?.uploadPath ?? config.uploadPath;
+          const UPLOAD_PATH = projectRoute.upload?.uploadPath ?? config.uploadPath;
           const parser = multipartStream(contentType, requestData, UPLOAD_PATH);
           parser.write(buffer);
           parser.end?.();
@@ -59,7 +59,7 @@ function readBody(executionContext) {
 
     //MULTIPART UPLOAD
     if (contentType.includes(CONTENT_TYPE_MULTIPART)) {
-      const UPLOAD_PATH = tenantRoute.upload?.uploadPath ?? config.uploadPath;
+      const UPLOAD_PATH = projectRoute.upload?.uploadPath ?? config.uploadPath;
       const parser = multipartStream(contentType, requestData, UPLOAD_PATH);
       let received = 0;
       res.onData((chunk, isLast) => {

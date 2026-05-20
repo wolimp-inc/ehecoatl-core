@@ -10,7 +10,7 @@
   Packaged plugins that extend runtime behavior through hooks.
 - `middlewares/`
   Packaged middleware surfaces used by the runtime and starter kits.
-- `tenant-kits/`
+- `project-kits/`
   Tenant scaffolds used by deploy flows.
 - `app-kits/`
   Application scaffolds and runnable examples used by deploy flows.

@@ -13,7 +13,7 @@ const runMiddleware = require(`@/builtin-extensions/middlewares/http/core-static
 
 test(`core-static-asset-serve renders compatible .e.html assets through eRendererRuntime`, async () => {
   const executionContext = createExecutionContext({
-    tenantRoute: {
+    projectRoute: {
       isStaticAsset: () => true,
       assetPath: () => `/tmp/app/assets/page.e.html`,
       i18n: [`default.json`],
@@ -32,7 +32,7 @@ test(`core-static-asset-serve renders compatible .e.html assets through eRendere
           assert.deepEqual(i18nJSONSources, [`/tmp/app/assets/i18n/default.json`]);
           assert.equal(renderContextSeed.request.method, `GET`);
           assert.equal(renderContextSeed.session.userId, `user_1`);
-          assert.equal(renderContextSeed.route, executionContext.tenantRoute);
+          assert.equal(renderContextSeed.route, executionContext.projectRoute);
           return Readable.from([`<h1>Hello</h1>`]);
         }
       }
@@ -51,7 +51,7 @@ test(`core-static-asset-serve renders compatible .e.html assets through eRendere
 
 test(`core-static-asset-serve ignores route i18n for non-compatible assets`, async () => {
   const executionContext = createExecutionContext({
-    tenantRoute: {
+    projectRoute: {
       isStaticAsset: () => true,
       assetPath: () => `/tmp/app/assets/page.html`,
       i18n: [`default.json`],
@@ -84,11 +84,11 @@ test(`core-static-asset-serve ignores route i18n for non-compatible assets`, asy
 });
 
 function createExecutionContext({
-  tenantRoute,
+  projectRoute,
   services
 }) {
   return {
-    tenantRoute,
+    projectRoute,
     services,
     responseData: {
       status: 200,

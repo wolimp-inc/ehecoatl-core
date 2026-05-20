@@ -77,7 +77,7 @@ module.exports.handleUpgrade = async function ({
     await setupUpgradeRequestData(executionContext);
     await executionContext.directorHelper.resolveRoute({ routeType: `ws-upgrade` });
 
-    if (!executionContext.tenantRoute || !executionContext.tenantRoute.isWsUpgradeRoute()) {
+    if (!executionContext.projectRoute || !executionContext.projectRoute.isWsUpgradeRoute()) {
       executionContext.responseData.status = 404;
       executionContext.responseData.body = `Not Found`;
       await writeResponse(executionContext);
@@ -108,7 +108,7 @@ module.exports.handleUpgrade = async function ({
     }
 
     const clientId = randomUUID();
-    const channelId = buildChannelId(executionContext.tenantRoute, executionContext.requestData);
+    const channelId = buildChannelId(executionContext.projectRoute, executionContext.requestData);
     if (!clientId || !channelId) {
       executionContext.responseData.status = 500;
       executionContext.responseData.body = `WebSocket route is missing runtime identity`;
@@ -128,15 +128,15 @@ module.exports.handleUpgrade = async function ({
           headers: executionContext.requestData?.headers ?? httpHandler._internal.extractHeaders(req),
           ip: executionContext.ip,
           context,
-          tenantId: executionContext.tenantRoute?.origin?.tenantId ?? null,
-          appId: executionContext.tenantRoute?.origin?.appId ?? null,
-          appName: executionContext.tenantRoute?.origin?.appName ?? null,
+          tenantId: executionContext.projectRoute?.origin?.tenantId ?? null,
+          appId: executionContext.projectRoute?.origin?.appId ?? null,
+          appName: executionContext.projectRoute?.origin?.appName ?? null,
           hostname: executionContext.requestData?.hostname ?? null,
           path: executionContext.requestData?.path ?? null,
           url: executionContext.requestData?.url ?? null,
           sessionId: executionContext.requestData?.cookie?.session ?? null,
           sessionData: sanitizeJsonCompatible(executionContext.sessionData ?? {}),
-          route: buildWsRouteSnapshot(executionContext.tenantRoute)
+          route: buildWsRouteSnapshot(executionContext.projectRoute)
         })
       },
       upgradeHeaders.key,
@@ -166,8 +166,8 @@ module.exports.handleUpgrade = async function ({
   }
 };
 
-function buildChannelId(tenantRoute, requestData) {
-  const appId = tenantRoute?.origin?.appId ?? null;
+function buildChannelId(projectRoute, requestData) {
+  const appId = projectRoute?.origin?.appId ?? null;
   const path = typeof requestData?.path === `string` && requestData.path.trim()
     ? requestData.path.trim()
     : `/`;
@@ -219,22 +219,22 @@ function captureUpgradeHeaders(req) {
   });
 }
 
-function buildWsRouteSnapshot(tenantRoute) {
-  if (!tenantRoute || typeof tenantRoute !== `object`) return null;
+function buildWsRouteSnapshot(projectRoute) {
+  if (!projectRoute || typeof projectRoute !== `object`) return null;
   return Object.freeze({
-    pointsTo: tenantRoute.pointsTo ?? null,
-    target: sanitizeJsonCompatible(tenantRoute.target ?? null),
-    params: sanitizeJsonCompatible(tenantRoute.params ?? {}),
-    view: sanitizeJsonCompatible(tenantRoute.view ?? {}),
-    middleware: Array.isArray(tenantRoute.middleware) ? Object.freeze([...tenantRoute.middleware]) : Object.freeze([]),
-    authScope: sanitizeJsonCompatible(tenantRoute.authScope ?? null),
-    wsActionsAvailable: Array.isArray(tenantRoute.wsActionsAvailable)
-      ? Object.freeze([...tenantRoute.wsActionsAvailable])
-      : (tenantRoute.wsActionsAvailable ?? null),
-    cors: Array.isArray(tenantRoute.cors) ? Object.freeze([...tenantRoute.cors]) : (tenantRoute.cors ?? null),
-    origin: sanitizeJsonCompatible(tenantRoute.origin ?? {}),
-    folders: sanitizeJsonCompatible(tenantRoute.folders ?? {}),
-    upgrade: sanitizeJsonCompatible(tenantRoute.upgrade ?? null)
+    pointsTo: projectRoute.pointsTo ?? null,
+    target: sanitizeJsonCompatible(projectRoute.target ?? null),
+    params: sanitizeJsonCompatible(projectRoute.params ?? {}),
+    view: sanitizeJsonCompatible(projectRoute.view ?? {}),
+    middleware: Array.isArray(projectRoute.middleware) ? Object.freeze([...projectRoute.middleware]) : Object.freeze([]),
+    authScope: sanitizeJsonCompatible(projectRoute.authScope ?? null),
+    wsActionsAvailable: Array.isArray(projectRoute.wsActionsAvailable)
+      ? Object.freeze([...projectRoute.wsActionsAvailable])
+      : (projectRoute.wsActionsAvailable ?? null),
+    cors: Array.isArray(projectRoute.cors) ? Object.freeze([...projectRoute.cors]) : (projectRoute.cors ?? null),
+    origin: sanitizeJsonCompatible(projectRoute.origin ?? {}),
+    folders: sanitizeJsonCompatible(projectRoute.folders ?? {}),
+    upgrade: sanitizeJsonCompatible(projectRoute.upgrade ?? null)
   });
 }
 

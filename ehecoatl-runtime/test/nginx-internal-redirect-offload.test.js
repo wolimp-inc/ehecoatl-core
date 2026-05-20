@@ -12,7 +12,7 @@ const writeHttpResponse = require(`@/builtin-extensions/adapters/inbound/ingress
 test(`static asset middleware emits nginx internal redirect for files inside assets root`, async () => {
   let body = null;
   const executionContext = {
-    tenantRoute: {
+    projectRoute: {
       folders: {
         tenantRootFolder: `/tmp/tenant`,
         rootFolder: `/tmp/tenant/app`,
@@ -55,7 +55,7 @@ test(`static asset middleware rejects asset paths outside the assets root`, asyn
     body: null
   };
   const executionContext = {
-    tenantRoute: {
+    projectRoute: {
       folders: {
         tenantRootFolder: `/tmp/tenant`,
         rootFolder: `/tmp/tenant/app`,
@@ -96,7 +96,7 @@ test(`static asset middleware rejects asset paths outside the assets root`, asyn
 test(`response cache resolver emits nginx internal redirect for cache hits inside the tenant cache root`, async () => {
   let body = null;
   const middlewareContext = {
-    tenantRoute: {
+    projectRoute: {
       cache: 60,
       folders: {
         rootFolder: `/tmp/tenant`

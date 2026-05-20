@@ -10,7 +10,7 @@ const ExecutionMetaData = require(`@/_core/runtimes/ingress-runtime/execution/ex
 /** Mutable middleware helper passed through the middleware stack to coordinate request execution flow. */
 class MiddlewareContext {
   services;
-  tenantRoute;
+  projectRoute;
   requestData;
   sessionData;
   viewData;
@@ -27,7 +27,7 @@ class MiddlewareContext {
    */
   constructor(ec) {
     this.services = ec.services;
-    this.tenantRoute = ec.tenantRoute;
+    this.projectRoute = ec.projectRoute;
     this.requestData = ec.requestData;
     this.sessionData = ec.sessionData;
     this.viewData = ec.viewData ?? {};

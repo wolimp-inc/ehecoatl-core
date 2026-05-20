@@ -3,6 +3,8 @@
 require(`module-alias/register`);
 
 const path = require(`node:path`);
+const fs = require(`node:fs`);
+const os = require(`node:os`);
 const test = require(`node:test`);
 const assert = require(`node:assert/strict`);
 
@@ -27,7 +29,7 @@ test(`ws inbound message pipeline validates query-style syntax, normalizes repea
   });
 
   const result = await runtime.runWsMessageMiddlewareStack({
-    tenantRoute: createWsTenantRoute({
+    projectRoute: createWsTenantRoute({
       wsActionsAvailable: [`hello@index`]
     }),
     sessionData: {
@@ -109,7 +111,7 @@ test(`ws inbound message pipeline discards binary, malformed, and unauthorized a
   for (const testCase of cases) {
     const rpcCalls = [];
     const result = await runtime.runWsMessageMiddlewareStack({
-      tenantRoute: createWsTenantRoute({
+      projectRoute: createWsTenantRoute({
         wsActionsAvailable: testCase.wsActionsAvailable === undefined
           ? [`hello@index`]
           : testCase.wsActionsAvailable
@@ -170,7 +172,7 @@ test(`ws inbound message pipeline runs optional app ws-message middleware before
 
   const sentReplies = [];
   const result = await runtime.runWsMessageMiddlewareStack({
-    tenantRoute: createWsTenantRoute({
+    projectRoute: createWsTenantRoute({
       wsActionsAvailable: [`hello@index`]
     }),
     services: {
@@ -206,14 +208,32 @@ test(`ws inbound message pipeline runs optional app ws-message middleware before
 
 test(`isolated runtime resolves ws actions from app ws actions folder and explicit services.ws sends can return null`, async () => {
   const sendCalls = [];
-  const testAppRoot = path.join(__dirname, `..`, `builtin-extensions`, `app-kits`, `test`);
+  const testAppRoot = fs.mkdtempSync(path.join(os.tmpdir(), `ehecoatl-ws-action-app-`));
+  const wsActionsRoot = path.join(testAppRoot, `app`, `ws`, `actions`);
+  fs.mkdirSync(wsActionsRoot, { recursive: true });
+  fs.writeFileSync(path.join(wsActionsRoot, `post-data.js`), `
+'use strict';
+
+exports.index = async function index({ services, wsMessageData }) {
+  await services.ws.sendMessage({
+    channelId: wsMessageData.channelId,
+    clientId: wsMessageData.clientId,
+    message: {
+      type: 'post-data',
+      actionTarget: wsMessageData.actionTarget,
+      params: wsMessageData.params
+    }
+  });
+  return null;
+};
+`, `utf8`);
 
   const result = await handleIsolatedWsActionRequest({
-    tenantRoute: createWsTenantRoute({
+    projectRoute: createWsTenantRoute({
       rootFolder: testAppRoot,
       folders: {
         rootFolder: testAppRoot,
-        wsActionsRootFolder: path.join(testAppRoot, `app`, `ws`, `actions`)
+        wsActionsRootFolder: wsActionsRoot
       }
     }),
     sessionData: {
@@ -250,7 +270,12 @@ test(`isolated runtime resolves ws actions from app ws actions folder and explic
 
   assert.deepEqual(result, {
     success: true,
-    result: null
+    result: null,
+    sessionData: {
+      auth: {
+        username: `alice`
+      }
+    }
   });
   assert.equal(sendCalls.length, 1);
   assert.deepEqual(sendCalls[0], {

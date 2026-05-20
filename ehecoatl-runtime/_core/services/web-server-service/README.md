@@ -19,7 +19,7 @@ Director-owned service use case for external TLS/web-server setup and tenant-sou
 
 ## Ambiguities
 
-- The nginx adapter assumes the tenant-local template `.ehecoatl/lib/nginx.e.conf` exists or can be materialized from the default tenant kit.
+- The nginx adapter assumes the tenant-local template `.ehecoatl/lib/nginx.e.conf` exists or can be materialized from the default project kit.
 - The default template still contains legacy `@t(...)` tokens, so the adapter keeps compatibility replacements while also supporting the newer `{{TOKEN}}` form.
 
 ## Not Implemented Yet

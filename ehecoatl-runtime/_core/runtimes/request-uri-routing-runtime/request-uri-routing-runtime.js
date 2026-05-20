@@ -19,7 +19,7 @@ class RequestUriRoutingRuntime extends AdaptableUseCase {
     this.config = kernelContext.config.adapters.requestUriRoutingRuntime ?? {};
     this.storageService = kernelContext.useCases.storageService;
     this.sharedCacheService = kernelContext.useCases.sharedCacheService;
-    this.directoryResolver = kernelContext.useCases.tenantDirectoryResolver;
+    this.directoryResolver = kernelContext.useCases.projectDirectoryResolver ?? kernelContext.useCases.tenantDirectoryResolver;
     this.localCache = new Map();
     this.invalidationPrefixes = Object.freeze([
       `urlRouteData:`,
@@ -35,7 +35,7 @@ class RequestUriRoutingRuntime extends AdaptableUseCase {
     const cached = this.localCache.get(cacheKey);
     const ttl = this.config.routeMatchTTL ?? 60 * 1000;
     if (cached && Date.now() < cached.validUntil) {
-      return cached.tenantRoute;
+      return cached.projectRoute;
     }
 
     const registry = this.directoryResolver.getRegistry();
@@ -48,7 +48,7 @@ class RequestUriRoutingRuntime extends AdaptableUseCase {
       defaultAppName: this.config.defaultAppName ?? `www`
     });
     const cachedData = {
-      tenantRoute: routeMatchData,
+      projectRoute: routeMatchData,
       validUntil: Date.now() + ttl
     };
     this.localCache.set(cacheKey, cachedData);

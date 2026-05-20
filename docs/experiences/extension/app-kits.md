@@ -15,14 +15,14 @@ This experience gives application teams a packaged starting point for routes, ac
 - App kit resolution checks built-in kits, then `PATHS.EXTENSIONS.customAppKits`, then `https://github.com/ehecoatl/app-kit-<kitname>.git`.
 - Remote fallback kits are cloned into the custom app-kit root as `<kitname>/` and are not auto-updated on later deploys.
 - HTTP and WS actions execute inside the isolated runtime model rather than in the ingress process.
-- The packaged `test` tenant kit embeds the default app, so the repository does not ship a separate built-in `test` app kit. Custom app kits can still exercise the same middleware, auth, and WS action surfaces described elsewhere in the docs.
+- The packaged `test` project kit embeds the default app, so the repository does not ship a separate built-in `test` app kit. Custom app kits can still exercise the same middleware, auth, and WS action surfaces described elsewhere in the docs.
 
 ## Key Files
 
 - `ehecoatl-runtime/builtin-extensions/app-kits/README.md`
-- `ehecoatl-runtime/builtin-extensions/tenant-kits/test/app_www/config/default.json`
-- `ehecoatl-runtime/builtin-extensions/tenant-kits/test/app_www/app/http/actions/auth-login.js`
-- `ehecoatl-runtime/builtin-extensions/tenant-kits/test/app_www/app/ws/actions/hello.js`
+- `ehecoatl-runtime/builtin-extensions/project-kits/test/app_www/config/default.json`
+- `ehecoatl-runtime/builtin-extensions/project-kits/test/app_www/app/http/actions/auth-login.js`
+- `ehecoatl-runtime/builtin-extensions/project-kits/test/app_www/app/ws/actions/hello.js`
 
 ## Related Docs
 

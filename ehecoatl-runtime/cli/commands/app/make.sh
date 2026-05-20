@@ -6,9 +6,9 @@ case "${1:-}" in
   -h|--help)
     cat <<'EOF'
 Usage:
-  ehecoatl app [<app_name>@<domain>|<app_name>@<tenant_id>] make middleware <new_resource_name>
-  ehecoatl app [<app_name>@<domain>|<app_name>@<tenant_id>] make plugin <new_resource_name>
-  ehecoatl app [<app_name>@<domain>|<app_name>@<tenant_id>] make action <new_resource_name>
+  ehecoatl app [<app_name>@<domain>|<app_name>@<project_id>] make middleware <new_resource_name>
+  ehecoatl app [<app_name>@<domain>|<app_name>@<project_id>] make plugin <new_resource_name>
+  ehecoatl app [<app_name>@<domain>|<app_name>@<project_id>] make action <new_resource_name>
 
 Creates a new app-scoped resource in the selected app scope.
 

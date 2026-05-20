@@ -4,7 +4,7 @@
 'use strict';
 
 
-const { service, serviceInstallRoot, appRoot, group, user } = require(`../context.js`);
+const { service, serviceInstallRoot, projectAppRoot, group, user } = require(`../context.js`);
 const cliSpecApp = require(`../cli-specs/cli.spec.app.js`);
 
 module.exports = {
@@ -20,36 +20,36 @@ module.exports = {
   PATH_DEFAULTS: { path: null, owner: user.appUser, group: group.appScope, mode: `2775`, recursive: true },
   PATHS: {
     LOGS: {
-      boot: [`${appRoot}/.ehecoatl/log/boot`],
-      error: [`${appRoot}/.ehecoatl/log/error`],
-      debug: [`${appRoot}/.ehecoatl/log/debug`, null, null, `2777`],
-      report: [`${appRoot}/.ehecoatl/log/debug/report.json`, null, null, `0665`, false, `file`],
+      boot: [`${projectAppRoot}/.ehecoatl/log/boot`],
+      error: [`${projectAppRoot}/.ehecoatl/log/error`],
+      debug: [`${projectAppRoot}/.ehecoatl/log/debug`, null, null, `2777`],
+      report: [`${projectAppRoot}/.ehecoatl/log/debug/report.json`, null, null, `0665`, false, `file`],
     },
     RUNTIME: {
-      root: [`${appRoot}`],
-      storage: [`${appRoot}/storage/`],
-      logs: [`${appRoot}/storage/logs`],
-      backups: [`${appRoot}/storage/backups`],
-      uploads: [`${appRoot}/storage/uploads`, null, null, `2777`],
-      cache: [`${appRoot}/storage/cache`],
+      root: [`${projectAppRoot}`],
+      storage: [`${projectAppRoot}/storage/`],
+      logs: [`${projectAppRoot}/storage/logs`],
+      backups: [`${projectAppRoot}/storage/backups`],
+      uploads: [`${projectAppRoot}/storage/uploads`, null, null, `2777`],
+      cache: [`${projectAppRoot}/storage/cache`],
 
-      internal: [`${appRoot}/storage/.${service}`],
-      internalArtifacts: [`${appRoot}/storage/.${service}/artifacts`],
-      internalTmp: [`${appRoot}/storage/.${service}/tmp`],
+      internal: [`${projectAppRoot}/storage/.${service}`],
+      internalArtifacts: [`${projectAppRoot}/storage/.${service}/artifacts`],
+      internalTmp: [`${projectAppRoot}/storage/.${service}/tmp`],
     },
     OVERRIDES: {
-      config: [`${appRoot}/config`, null, null, `2755`, true],
-      routes: [`${appRoot}/routes`, null, null, `2755`, true],
-      plugins: [`${appRoot}/plugins`],
+      config: [`${projectAppRoot}/config`, null, null, `2755`, true],
+      routes: [`${projectAppRoot}/routes`, null, null, `2755`, true],
+      plugins: [`${projectAppRoot}/plugins`],
     },
     RESOURCES: {
-      app: [`${appRoot}/app`],
-      utils: [`${appRoot}/app/utils`],
-      scripts: [`${appRoot}/app/scripts`],
-      httpMiddlewares: [`${appRoot}/app/http/middlewares`],
-      wsMiddlewares: [`${appRoot}/app/ws/middlewares`],
-      assets: [`${appRoot}/assets`],
-      assetStatic: [`${appRoot}/assets/static`, null, null, `2775`],
+      app: [`${projectAppRoot}/app`],
+      utils: [`${projectAppRoot}/app/utils`],
+      scripts: [`${projectAppRoot}/app/scripts`],
+      httpMiddlewares: [`${projectAppRoot}/app/http/middlewares`],
+      wsMiddlewares: [`${projectAppRoot}/app/ws/middlewares`],
+      assets: [`${projectAppRoot}/assets`],
+      assetStatic: [`${projectAppRoot}/assets/static`, null, null, `2775`],
     }
   },
   ACTORS: {
@@ -61,7 +61,7 @@ module.exports = {
       umask: "027",
       login: {
         shell: `/usr/sbin/nologin`,
-        home: appRoot
+        home: projectAppRoot
       },
       cli: {
         paths: [`${serviceInstallRoot}/cli`]
@@ -69,12 +69,12 @@ module.exports = {
     },
     PROCESSES: {
       isolatedRuntime: {
-        description: `Per-tenant isolated runtime process`,
+        description: `Per-project isolated runtime process`,
         identity: {
           key: `isolatedRuntime`,
           label: `e_app_{tenant_id}_{app_id}`,
           user: user.appUser,
-          group: group.tenantScope,
+          group: group.projectScope,
           secondGroup: group.superScope,
           thirdGroup: group.internalScope
         },

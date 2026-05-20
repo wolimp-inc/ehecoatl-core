@@ -16,14 +16,20 @@ function normalizeOpaqueId(value, fieldName) {
 function buildTenantTransportLabel({
   tenantId
 }) {
-  return getProcessLabel(`tenantScope`, `transport`, {
+  return getProcessLabel(`projectScope`, `transport`, {
     tenant_id: normalizeOpaqueId(tenantId, `tenantId`)
   });
 }
 
 function parseTenantTransportLabel(label) {
-  if (typeof label !== `string` || !label.startsWith(`e_transport_`)) return null;
-  const tenantId = label.slice(`e_transport_`.length).trim().toLowerCase();
+  if (typeof label !== `string`) return null;
+  const prefix = label.startsWith(`e_project_transport_`)
+    ? `e_project_transport_`
+    : label.startsWith(`e_transport_`)
+      ? `e_transport_`
+      : null;
+  if (!prefix) return null;
+  const tenantId = label.slice(prefix.length).trim().toLowerCase();
   if (!tenantId) return null;
   return { tenantId };
 }

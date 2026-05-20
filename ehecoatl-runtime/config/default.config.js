@@ -16,6 +16,7 @@ module.exports = {
 
   "runtime": {
     "customConfigPath": "/etc/opt/ehecoatl/config", // Future get from runtime policy
+    "customProjectKitsPath": "/srv/opt/ehecoatl/project-kits",
     "customTenantKitsPath": "/srv/opt/ehecoatl/tenant-kits",
     "customAdaptersPath": "/srv/opt/ehecoatl/adapters",
     "customPluginsPath": "/srv/opt/ehecoatl/plugins",
@@ -85,7 +86,9 @@ module.exports = {
       "wssPort": 8443,
       "managedConfigDir": "/etc/nginx/conf.d/ehecoatl",
       "managedIncludeFile": "/etc/nginx/conf.d/ehecoatl.conf",
-      "managedConfigPrefix": "tenant_",
+      "managedConfigPrefix": "project_",
+      "defaultProjectKitBaseDir": "/srv/opt/ehecoatl/project-kits",
+      "defaultProjectKitName": "empty",
       "defaultTenantKitBaseDir": "/srv/opt/ehecoatl/tenant-kits",
       "defaultTenantKitName": "empty",
       "nginxTestCommand": ["nginx", "-t", "-e", "stderr"],
@@ -150,14 +153,32 @@ module.exports = {
       }
     },
 
+    "projectDirectoryResolver": {
+      "adapter": "default-tenancy",
+      "spawnProjectAppAfterScan": true,
+      "spawnTenantAppAfterScan": true,
+      "processRpcTimeoutMs": 2000,
+      "scanActiveCacheKey": "projectScanActive",
+      "scanActiveTTL": 30000, //30seconds
+      "scanIntervalMs": 300000, //5minutes
+      "responseCacheCleanupIntervalMs": 300000, //5minutes
+      "projectsPath": "/var/opt/ehecoatl/projects",
+      "tenantsPath": "/var/opt/ehecoatl/tenants",
+      "question": {
+        "forceRescanNow": "projectRescanNow",
+        "shutdownProcessNow": "projectShutdownProcessNow"
+      }
+    },
+
     "tenantDirectoryResolver": {
       "adapter": "default-tenancy",
       "spawnTenantAppAfterScan": true,
       "processRpcTimeoutMs": 2000,
       "scanActiveCacheKey": "tenancyScanActive",
-      "scanActiveTTL": 30000, //30seconds
-      "scanIntervalMs": 300000, //5minutes
-      "responseCacheCleanupIntervalMs": 300000, //5minutes
+      "scanActiveTTL": 30000,
+      "scanIntervalMs": 300000,
+      "responseCacheCleanupIntervalMs": 300000,
+      "projectsPath": "/var/opt/ehecoatl/projects",
       "tenantsPath": "/var/opt/ehecoatl/tenants",
       "question": {
         "forceRescanNow": "tenancyRescanNow",
@@ -165,10 +186,20 @@ module.exports = {
       }
     },
 
+    "projectRegistryResolver": {
+      "adapter": "default-runtime-registry-v1",
+      "internalProxyPortStart": 14002,
+      "internalProxyPortEnd": 65534
+    },
+
     "tenantRegistryResolver": {
       "adapter": "default-runtime-registry-v1",
       "internalProxyPortStart": 14002,
       "internalProxyPortEnd": 65534
+    },
+
+    "projectRouteMatcherCompiler": {
+      "adapter": "default-routing-v1"
     },
 
     "tenantRouteMatcherCompiler": {

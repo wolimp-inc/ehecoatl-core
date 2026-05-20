@@ -43,10 +43,10 @@ function createTenantReportWriter(options = {}) {
 
   function observeRequest(executionContext) {
     if (config.enabled !== true) return;
-    const tenantRoute = executionContext?.tenantRoute;
-    const tenantHost = String(tenantRoute?.origin?.hostname ?? ``).trim();
-    const tenantRoot = String(tenantRoute?.folders?.rootFolder ?? ``).trim();
-    const reportPath = resolveTenantReportPath(tenantRoute, tenantRoot);
+    const projectRoute = executionContext?.projectRoute;
+    const tenantHost = String(projectRoute?.origin?.hostname ?? ``).trim();
+    const tenantRoot = String(projectRoute?.folders?.rootFolder ?? ``).trim();
+    const reportPath = resolveTenantReportPath(projectRoute, tenantRoot);
     if (!tenantHost || !tenantRoot || !reportPath) return;
 
     const key = `${tenantHost}:${tenantRoot}`;
@@ -143,8 +143,8 @@ function createTenantReportWriter(options = {}) {
   });
 }
 
-function resolveTenantReportPath(tenantRoute, appRootFolder) {
-  const origin = tenantRoute?.origin ?? {};
+function resolveTenantReportPath(projectRoute, appRootFolder) {
+  const origin = projectRoute?.origin ?? {};
   const currentAppRoot = String(appRootFolder ?? ``).trim();
   const tenantId = String(origin.tenantId ?? ``).trim();
   const appId = String(origin.appId ?? ``).trim();

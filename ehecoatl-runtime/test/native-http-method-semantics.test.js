@@ -118,7 +118,7 @@ function createExecutionContext({
     req,
     res,
     requestData: null,
-    tenantRoute: null,
+    projectRoute: null,
     responseData: {
       status: 200,
       headers: {},
@@ -158,7 +158,7 @@ function createExecutionContext({
 
   executionContext.directorHelper = {
     async resolveRoute() {
-      executionContext.tenantRoute = route;
+      executionContext.projectRoute = route;
     }
   };
 

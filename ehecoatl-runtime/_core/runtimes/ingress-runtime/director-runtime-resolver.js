@@ -5,7 +5,7 @@
 
 
 const IngressRuntime = require(`@/_core/runtimes/ingress-runtime`);
-const TenantRoute = require(`@/_core/runtimes/ingress-runtime/execution/tenant-route`);
+const ProjectRoute = require(`@/_core/runtimes/ingress-runtime/execution/project-route`);
 const { runAsyncCacheTask } = require(`@/utils/cache/cache-async`);
 
 /** Transport-side RPC resolver that bridges request execution with director-process services. */
@@ -26,7 +26,8 @@ class DirectorRuntimeResolver {
    * @param {IngressRuntime} ingressRuntime
    */
   constructor(ingressRuntime) {
-    const tenantDirectoryResolverConfig = ingressRuntime.tenantDirectoryResolverConfig
+    const projectDirectoryResolverConfig = ingressRuntime.projectDirectoryResolverConfig
+      ?? ingressRuntime.tenantDirectoryResolverConfig
       ?? {};
     const requestUriRoutingRuntimeConfig = ingressRuntime.requestUriRoutingRuntimeConfig
       ?? {};
@@ -38,7 +39,7 @@ class DirectorRuntimeResolver {
     this.routeMissTTL = requestUriRoutingRuntimeConfig.routeMissTTL
       ?? ingressRuntime.config?.routeMissTTL
       ?? 5000;
-    this.scanActiveCacheKey = tenantDirectoryResolverConfig.scanActiveCacheKey ?? null;
+    this.scanActiveCacheKey = projectDirectoryResolverConfig.scanActiveCacheKey ?? null;
     this.asyncCacheTimeoutMs = requestUriRoutingRuntimeConfig.asyncCacheTimeoutMs ?? 500;
     this.transportTenantId = process.argv[2] ?? null;
 
@@ -59,11 +60,11 @@ class DirectorRuntimeResolver {
    * This method resolves url tenancy for further
    * treatment and handle
    */
-  /** Resolves and caches the tenant route for the current execution context URL. */
+  /** Resolves and caches the project route for the current execution context URL. */
   async resolveRoute(executionContext, {
     routeType = null
   } = {}) {
-    let tenantRoute = null;
+    let projectRoute = null;
     const plugin = this.plugin;
     const { hooks } = plugin;
     const { BEFORE, AFTER, ERROR } = hooks.TRANSPORT.REQUEST.GET_ROUTER;
@@ -71,7 +72,7 @@ class DirectorRuntimeResolver {
 
     const { url } = executionContext.requestData;
     const forcedAppId = executionContext?.meta?.forcedAppId ?? null;
-    const tenantId = executionContext?.tenantRoute?.tenantId ?? this.transportTenantId;
+    const tenantId = executionContext?.projectRoute?.tenantId ?? this.transportTenantId;
     const routeCacheScope = buildRouteCacheScope({ url, tenantId, forcedAppId, routeType });
     const missCacheKey = `urlRouteMiss:${routeCacheScope}`;
     const routeCacheKey = `urlRouteData:${routeCacheScope}`;
@@ -86,39 +87,39 @@ class DirectorRuntimeResolver {
 
       const cachedData = await this.cache.get(routeCacheKey, null);
       if (cachedData) {
-        tenantRoute = JSON.parse(cachedData);
+        projectRoute = JSON.parse(cachedData);
       }
     }
 
-    if (!tenantRoute) {
+    if (!projectRoute) {
       // IF NOT FOUND, ask director to resolve route.
-      tenantRoute = await this.rpc.ask({
+      projectRoute = await this.rpc.ask({
         question: this.question.requestUriRoutingRuntime,
         target: `director`,
         data: { url, tenantId, forcedAppId, routeType },
         internalMeta: buildRequestInternalMeta(executionContext)
       });
-      if (tenantRoute?.success === false && tenantRoute?.error) {
-        const routeResolutionError = new Error(tenantRoute.error);
-        routeResolutionError.code = tenantRoute.code ?? `ROUTE_RESOLUTION_FAILED`;
+      if (projectRoute?.success === false && projectRoute?.error) {
+        const routeResolutionError = new Error(projectRoute.error);
+        routeResolutionError.code = projectRoute.code ?? `ROUTE_RESOLUTION_FAILED`;
         throw routeResolutionError;
       }
       if (!scanActive) {
-        if (tenantRoute) {
-          this.#cacheRouteData(routeCacheKey, tenantRoute);
+        if (projectRoute) {
+          this.#cacheRouteData(routeCacheKey, projectRoute);
         } else {
           this.#cacheRouteMiss(missCacheKey);
         }
       }
     }
     console.log(
-      `[director-runtime-resolver.resolveRoute] url=${url ?? `null`} resolved=${tenantRoute ? `yes` : `no`} hostname=${tenantRoute?.origin?.hostname ?? `null`} appURL=${tenantRoute?.origin?.appURL ?? `null`} target=director`
+      `[director-runtime-resolver.resolveRoute] url=${url ?? `null`} resolved=${projectRoute ? `yes` : `no`} hostname=${projectRoute?.origin?.hostname ?? `null`} appURL=${projectRoute?.origin?.appURL ?? `null`} target=director`
     );
-    if (tenantRoute) {
-      tenantRoute = new TenantRoute(tenantRoute);
+    if (projectRoute) {
+      projectRoute = new ProjectRoute(projectRoute);
     }
     await plugin.run(AFTER, executionContext, ERROR);
-    return tenantRoute;
+    return projectRoute;
   }
 
   /** Reads a shared object from cache storage by key. */
@@ -150,7 +151,7 @@ class DirectorRuntimeResolver {
   }
 
   /** Persists one positive route-match cache entry asynchronously. */
-  #cacheRouteData(cacheKey, tenantRoute) {
+  #cacheRouteData(cacheKey, projectRoute) {
     runAsyncCacheTask({
       channel: `route_cache`,
       operation: `set_route_data`,
@@ -159,7 +160,7 @@ class DirectorRuntimeResolver {
       execute: async () => {
         await this.cache.set(
           cacheKey,
-          JSON.stringify(tenantRoute),
+          JSON.stringify(projectRoute),
           this.routeCacheTTL ?? undefined
         );
       }

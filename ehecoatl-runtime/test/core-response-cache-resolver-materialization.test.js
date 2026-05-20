@@ -15,7 +15,7 @@ test(`response cache resolver materializes safe public action output after next`
   const writes = [];
   const cacheSets = [];
   const middlewareContext = createMaterializationContext({
-    tenantRoute: {
+    projectRoute: {
       target: {
         run: {
           action: `hello@index`
@@ -93,7 +93,7 @@ test(`response cache resolver materializes safe public action output after next`
 test(`response cache resolver materialization caps route ttl by maxResponseCacheTTL`, async () => {
   const cacheSets = [];
   const middlewareContext = createMaterializationContext({
-    tenantRoute: {
+    projectRoute: {
       target: {
         run: {
           action: `hello@index`
@@ -153,7 +153,7 @@ test(`response cache resolver materialization caps route ttl by maxResponseCache
 test(`response cache resolver materialization skips non-cacheable session routes`, async () => {
   let wrote = false;
   const middlewareContext = createMaterializationContext({
-    tenantRoute: {
+    projectRoute: {
       target: {
         run: {
           action: `session@index`
@@ -213,7 +213,7 @@ test(`response cache resolver materialization skips non-cacheable session routes
 test(`response cache resolver materialization infers ttl from cache-control directives`, async () => {
   const cacheSets = [];
   const middlewareContext = createMaterializationContext({
-    tenantRoute: {
+    projectRoute: {
       target: {
         run: {
           action: `hello@index`
@@ -270,7 +270,7 @@ test(`response cache resolver materialization infers ttl from cache-control dire
 test(`response cache resolver materialization skips custom cache-control without cacheable age directives`, async () => {
   let wrote = false;
   const middlewareContext = createMaterializationContext({
-    tenantRoute: {
+    projectRoute: {
       target: {
         run: {
           action: `hello@index`
@@ -341,7 +341,7 @@ test(`response cache resolver materializes streamed bodies before releasing queu
       method: `GET`,
       url: `tenant.test/stream`
     },
-    tenantRoute: {
+    projectRoute: {
       origin: {
         hostname: `tenant.test`
       },
@@ -460,7 +460,7 @@ test(`response cache resolver materialization skips write when tenant-specific d
   const cacheSets = [];
   const writes = [];
   const middlewareContext = createMaterializationContext({
-    tenantRoute: {
+    projectRoute: {
       host: `tenant.test`,
       origin: {
         hostname: `tenant.test`
@@ -576,7 +576,7 @@ test(`response cache resolver materialization can cleanup tracked files and proc
   fs.utimesSync(staleCacheFile, staleDate, staleDate);
 
   const middlewareContext = createMaterializationContext({
-    tenantRoute: {
+    projectRoute: {
       host: `tenant.test`,
       origin: {
         hostname: `tenant.test`

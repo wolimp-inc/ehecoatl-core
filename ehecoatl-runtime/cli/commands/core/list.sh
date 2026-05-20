@@ -11,7 +11,7 @@ case "${1:-}" in
     cat <<'EOF'
 Usage: ehecoatl core list
 
-Lists all managed tenants.
+Lists all managed projects.
 
 Options:
   -h, --help   Show this help message.
@@ -21,12 +21,12 @@ EOF
 esac
 
 node -e '
-  const tenants = JSON.parse(process.argv[1] ?? `[]`);
-  if (!Array.isArray(tenants) || tenants.length === 0) {
-    console.log(`No tenants found.`);
+  const projects = JSON.parse(process.argv[1] ?? `[]`);
+  if (!Array.isArray(projects) || projects.length === 0) {
+    console.log(`No projects found.`);
     process.exit(0);
   }
-  for (const tenant of tenants) {
-    console.log(`@${tenant.tenantDomain}\t${tenant.tenantId}\tapps:${tenant.appCount}`);
+  for (const project of projects) {
+    console.log(`@${project.projectDomain ?? project.tenantDomain}\t${project.projectId ?? project.tenantId}\tapps:${project.appCount}`);
   }
 ' "$(node "$TENANT_LAYOUT_CLI" list-tenants "$TENANTS_BASE")"

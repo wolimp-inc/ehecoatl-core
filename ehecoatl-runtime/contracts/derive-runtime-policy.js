@@ -29,6 +29,7 @@ function deriveRuntimePolicy() {
 
   const internalScope = getLayerByLabel(`Internal Scope Layer Contract`);
   const supervisionScope = getLayerByLabel(`Supervision Scope Layer Contract`);
+  const projectScope = getLayerByLabel(`Project Scope Layer Contract`);
   const tenantScope = getLayerByLabel(`Tenant Scope Layer Contract`);
   const appScope = getLayerByLabel(`App Scope Layer Contract`);
   const internalRuntime = contracts.SETUP?.IDENTITIES?.internalRuntime ?? null;
@@ -42,13 +43,15 @@ function deriveRuntimePolicy() {
   policy.paths = {
     ...(policy.paths ?? {}),
     // Safe contract-backed values: these resolve directly from the shared setup context.
-    tenantsBase: context.serviceTenantsRoot,
-    varBase: path.dirname(context.serviceTenantsRoot),
+    projectsBase: context.serviceProjectsRoot,
+    tenantsBase: policy.paths?.tenantsBase ?? context.serviceTenantsRoot,
+    varBase: path.dirname(context.serviceProjectsRoot),
     directorRpcDir: getDirectorRpcSocketDir(),
     directorRpcSocket: getDirectorRpcSocketPath(),
     // Keep compatibility-backed paths until contracts model these explicitly.
     pluginsBase: policy.paths?.pluginsBase ?? `/srv/opt/${context.service}/plugins`,
     adaptersBase: policy.paths?.adaptersBase ?? `/srv/opt/${context.service}/adapters`,
+    projectKitsBase: policy.paths?.projectKitsBase ?? `/srv/opt/${context.service}/project-kits`,
     tenantKitsBase: policy.paths?.tenantKitsBase ?? `/srv/opt/${context.service}/tenant-kits`,
     srvBase: policy.paths?.srvBase ?? `/srv/opt/${context.service}`,
     configBase: policy.paths?.configBase ?? `/etc/opt/${context.service}/config`,
@@ -70,8 +73,8 @@ function deriveRuntimePolicy() {
     },
     transport: {
       mode: `fixed`,
-      user: getProcessIdentity(tenantScope, `transport`)?.user ?? policy.system.sharedUser,
-      group: getProcessIdentity(tenantScope, `transport`)?.group ?? context.group.tenantScope,
+      user: getProcessIdentity(projectScope, `transport`)?.user ?? getProcessIdentity(tenantScope, `transport`)?.user ?? policy.system.sharedUser,
+      group: getProcessIdentity(projectScope, `transport`)?.group ?? getProcessIdentity(tenantScope, `transport`)?.group ?? context.group.projectScope,
       shareProxyByUser: false
     },
     isolatedRuntime: {
@@ -84,8 +87,20 @@ function deriveRuntimePolicy() {
 
   policy.tenantLayout = {
     ...(policy.tenantLayout ?? {}),
-    domainBaseOwner: context.user.tenantUser,
-    domainBaseGroup: context.group.tenantScope,
+    domainBaseOwner: context.user.projectUser,
+    domainBaseGroup: context.group.projectScope,
+    domainBaseMode: `2770`,
+    appOwner: context.user.appUser,
+    appGroup: context.group.appScope,
+    appMode: `2775`,
+    appWritableDirMode: `2775`,
+    appFileMode: `664`,
+    appConfigMode: `664`
+  };
+  policy.projectLayout = {
+    ...(policy.projectLayout ?? policy.tenantLayout ?? {}),
+    domainBaseOwner: context.user.projectUser,
+    domainBaseGroup: context.group.projectScope,
     domainBaseMode: `2770`,
     appOwner: context.user.appUser,
     appGroup: context.group.appScope,
@@ -102,11 +117,13 @@ function deriveRuntimePolicy() {
     context: {
       service: context.service,
       serviceInstallRoot: context.serviceInstallRoot,
+      serviceProjectsRoot: context.serviceProjectsRoot,
       serviceTenantsRoot: context.serviceTenantsRoot
     },
     mapped: Object.freeze([
       `system.sharedUser`,
       `system.sharedGroup`,
+      `paths.projectsBase`,
       `paths.tenantsBase`,
       `paths.varBase`,
       `processUsers.main.user`,
@@ -114,11 +131,13 @@ function deriveRuntimePolicy() {
       `processUsers.director`,
       `processUsers.transport`,
       `processUsers.isolatedRuntime`,
+      `projectLayout`,
       `tenantLayout`
     ]),
     compatibilityFallback: Object.freeze([
       `paths.pluginsBase`,
       `paths.adaptersBase`,
+      `paths.projectKitsBase`,
       `paths.tenantKitsBase`,
       `paths.srvBase`,
       `paths.configBase`,
@@ -132,7 +151,9 @@ function deriveRuntimePolicy() {
     supervisionScopePaths: {
       runtimeRegistry: getPrimaryPath(supervisionScope, `RUNTIME`, `registry`, null),
       overridesConfig: getPrimaryPath(supervisionScope, `OVERRIDES`, `config`, null),
-      extensionsPlugins: getPrimaryPath(supervisionScope, `EXTENSIONS`, `customPlugins`, null)
+      extensionsPlugins: getPrimaryPath(supervisionScope, `EXTENSIONS`, `customPlugins`, null),
+      extensionsProjectKits: getPrimaryPath(supervisionScope, `EXTENSIONS`, `customProjectKits`, null),
+      extensionsTenantKits: getPrimaryPath(supervisionScope, `EXTENSIONS`, `customTenantKits`, null)
     }
   };
 

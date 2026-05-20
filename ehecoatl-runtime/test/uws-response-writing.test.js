@@ -66,7 +66,7 @@ function createExecutionContext(responseData, res) {
     requestData: {
       method: `GET`
     },
-    tenantRoute: null,
+    projectRoute: null,
     manager: {
       setCookiesSession: async () => { }
     },
@@ -150,7 +150,7 @@ test(`writeHttpResponse applies the route cache-control default when the respons
     headers: {},
     body: `cached`
   }, res);
-  executionContext.tenantRoute = {
+  executionContext.projectRoute = {
     cache: 60
   };
 
@@ -171,7 +171,7 @@ test(`writeHttpResponse preserves explicit cache-control headers over the route 
     },
     body: `cached`
   }, res);
-  executionContext.tenantRoute = {
+  executionContext.projectRoute = {
     cache: `public, max-age=60, stale-while-revalidate=30`
   };
 
